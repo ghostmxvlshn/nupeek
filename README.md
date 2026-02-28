@@ -30,7 +30,7 @@ deps-src/
 ```
 
 ## MVP scope
-1. `depsrc type` and `depsrc find`
+1. `nupeek type` and `nupeek find`
 2. Download/extract `.nupkg`
 3. Pick target `lib/<tfm>/`
 4. Scan DLL metadata to find assembly containing target type
@@ -38,7 +38,7 @@ deps-src/
 6. Write output + update `index.json` and `manifest.json`
 
 ## Tech stack (initial)
-- .NET 8 console app
+- .NET 10 console app
 - `ICSharpCode.Decompiler`
 - `NuGet.Protocol`
 - `NuGet.Packaging`
@@ -67,5 +67,5 @@ Install local hooks once per clone:
 ```
 
 Enabled pre-commit checks:
-- `dotnet format Nupeek.sln --verify-no-changes`
-- `dotnet test Nupeek.sln --configuration Release`
+- `dotnet format Nupeek.slnx --verify-no-changes`
+- `dotnet test Nupeek.slnx --configuration Release`

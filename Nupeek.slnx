@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Nupeek.Core/Nupeek.Core.csproj" />
+    <Project Path="src/Nupeek.Cli/Nupeek.Cli.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Nupeek.Core.Tests/Nupeek.Core.Tests.csproj" />
+  </Folder>
+</Solution>

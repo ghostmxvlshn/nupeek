@@ -7,9 +7,9 @@ if ! command -v dotnet >/dev/null 2>&1; then
 fi
 
 echo "[pre-commit] Running dotnet format..."
-dotnet format Nupeek.sln --verify-no-changes
+dotnet format Nupeek.slnx --verify-no-changes
 
 echo "[pre-commit] Running dotnet test..."
-dotnet test Nupeek.sln --configuration Release --nologo
+dotnet test Nupeek.slnx --configuration Release --nologo
 
 echo "[pre-commit] OK"
