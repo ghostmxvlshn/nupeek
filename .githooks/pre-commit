@@ -13,3 +13,4 @@ echo "[pre-commit] Running dotnet test..."
 dotnet test Nupeek.slnx --configuration Release --nologo
 
 echo "[pre-commit] OK"
+echo "[pre-commit] Reminder: commit message format is enforced by .githooks/commit-msg"

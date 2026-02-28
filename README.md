@@ -67,6 +67,10 @@ Install local hooks once per clone:
 ./scripts/install-hooks.sh
 ```
 
-Enabled pre-commit checks:
-- `dotnet format Nupeek.slnx --verify-no-changes`
-- `dotnet test Nupeek.slnx --configuration Release`
+Enabled hooks:
+- `pre-commit`: `dotnet format Nupeek.slnx --verify-no-changes` + `dotnet test Nupeek.slnx --configuration Release`
+- `commit-msg`: enforces **icon + Conventional Commits** format
+
+Commit/PR title format:
+- `<icon> <type>(optional-scope): <description>`
+- Example: `✨ feat(cli): add argument validation`
