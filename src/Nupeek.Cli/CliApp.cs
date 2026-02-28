@@ -19,7 +19,8 @@ public static class CliApp
         // Let command-line library render help path as-is.
         if (args.Any(static a => a is "--help" or "-h"))
         {
-            return await root.InvokeAsync(args, console).ConfigureAwait(false);
+            var helpCode = await root.InvokeAsync(args, console).ConfigureAwait(false);
+            return helpCode;
         }
 
         // Parse first to provide concise argument diagnostics.
@@ -37,7 +38,10 @@ public static class CliApp
 
         try
         {
-            return await root.InvokeAsync(args, console).ConfigureAwait(false);
+            // System.CommandLine beta handlers here set Environment.ExitCode; InvokeAsync may still return 0.
+            Environment.ExitCode = ExitCodes.Success;
+            var invokeCode = await root.InvokeAsync(args, console).ConfigureAwait(false);
+            return invokeCode != ExitCodes.Success ? invokeCode : Environment.ExitCode;
         }
         catch (ArgumentException ex)
         {
@@ -104,8 +108,7 @@ public static class CliApp
         command.SetHandler(
             (string package, string? version, string? tfm, string type, string @out, bool verbose, bool quiet, bool dryRun) =>
             {
-                var exitCode = RunPlan("type", package, version ?? "latest", tfm ?? "auto", type, @out, verbose, quiet, dryRun);
-                Environment.ExitCode = exitCode;
+                Environment.ExitCode = RunPlan("type", package, version ?? "latest", tfm ?? "auto", type, @out, verbose, quiet, dryRun);
             },
             packageOption,
             versionOption,
@@ -145,8 +148,7 @@ public static class CliApp
             {
                 // Convert symbol-like input to type name before executing pipeline.
                 var typeName = SymbolParser.ToTypeName(symbol);
-                var exitCode = RunPlan("find", package, version ?? "latest", tfm ?? "auto", typeName, @out, verbose, quiet, dryRun, symbol);
-                Environment.ExitCode = exitCode;
+                Environment.ExitCode = RunPlan("find", package, version ?? "latest", tfm ?? "auto", typeName, @out, verbose, quiet, dryRun, symbol);
             },
             packageOption,
             versionOption,

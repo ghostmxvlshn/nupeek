@@ -34,7 +34,7 @@ nupeek type --package <PackageId> --type <Namespace.Type> --out deps-src
 3. If type is unknown, discover candidates:
 
 ```bash
-nupeek find --package <PackageId> --name <TypeOrPattern> --out deps-src
+nupeek find --package <PackageId> --symbol <Namespace.TypeOrMember> --out deps-src
 ```
 
 4. Inspect generated files under `deps-src/`:
