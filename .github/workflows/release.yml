@@ -55,6 +55,15 @@ jobs:
             --output ./artifacts \
             /p:Version=${{ steps.version.outputs.package_version }}
 
+
+      - name: Validate NuGet API key
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          if [ -z "$NUGET_API_KEY" ]; then
+            echo "NUGET_API_KEY is not configured. Add it in repo Settings → Secrets and variables → Actions."
+            exit 1
+          fi
       - name: Publish to NuGet
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
