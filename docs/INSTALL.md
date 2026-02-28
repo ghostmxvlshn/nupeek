@@ -16,6 +16,18 @@ dotnet --list-sdks
 dotnet tool install -g Nupeek
 ```
 
+### One-line installer (curl | sh)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ghostmxvlshn/nupeek/main/install.sh | bash
+```
+
+Pin a version:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ghostmxvlshn/nupeek/main/install.sh | VERSION=0.1.0 bash
+```
+
 Update later:
 
 ```bash

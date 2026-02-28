@@ -59,7 +59,7 @@ deps-src/
 - CLI UX standards: `docs/CLI_BEST_PRACTICES.md` (derived from https://clig.dev)
 - C# style rules: `.editorconfig`
 - Central package management: `Directory.Packages.props`
-- Install guide: `docs/INSTALL.md`
+- Install guide: `docs/INSTALL.md` (includes curl|sh installer)
 - Release guide: `docs/RELEASE.md`
 
 ## Git hooks (recommended)
