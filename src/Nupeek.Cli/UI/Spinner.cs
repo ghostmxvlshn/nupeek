@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 namespace Nupeek.Cli;
 
-internal sealed class Spinner : IDisposable, IAsyncDisposable
+internal sealed class Spinner : IAsyncDisposable
 {
     private const string ClearToEndOfLine = "\x1b[K";
     private static readonly char[] Frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
@@ -39,27 +39,8 @@ internal sealed class Spinner : IDisposable, IAsyncDisposable
         }
     }
 
-    public void Stop(string status)
-        => StopAsync(status).GetAwaiter().GetResult();
-
     public ValueTask StopAsync(string status)
         => StopInternalAsync(status, writeStatus: true);
-
-    public void Dispose()
-    {
-        try
-        {
-            StopInternalAsync(string.Empty, writeStatus: false).GetAwaiter().GetResult();
-        }
-        catch
-        {
-            // Dispose should be best-effort and never throw.
-        }
-        finally
-        {
-            DisposeResources();
-        }
-    }
 
     public async ValueTask DisposeAsync()
     {
