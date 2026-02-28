@@ -19,8 +19,6 @@
     <div class="nav container">
       <a class="logo" href="#" aria-label="Nupeek home">nupeek</a>
       <nav class="links" aria-label="Primary">
-        <a href="#problem">Problem</a>
-        <a href="#solution">Solution</a>
         <a href="#install">Install</a>
         <a href="#skill">Skill</a>
         <a href="#usage">Usage</a>
@@ -34,18 +32,17 @@
     <section class="hero-wrap">
       <div class="container hero-grid">
         <div class="hero-copy">
-          <p class="eyebrow">Agent-native NuGet inspection for real implementation context</p>
-          <h1>Stop guessing package behavior. Let your agent inspect the code behind the API.</h1>
-          <p class="lead">Nupeek decompiles only the NuGet package type you need into <code>deps-src/</code>, so debugging, upgrades, and architecture decisions are grounded in actual implementation details instead of assumptions.</p>
+          <p class="eyebrow">Agent-native NuGet inspection</p>
+          <h1>Inspect NuGet internals fast, without leaving your terminal.</h1>
+          <p class="lead">Nupeek decompiles only the type you ask for into <code>deps-src/</code> so your agent reasons from real code, not guesses.</p>
           <div class="cta-row">
             <a class="btn" href="#install">Install Nupeek</a>
-            <a class="btn ghost" href="#usage">View usage screenshots</a>
           </div>
           <div class="proof-inline">
-            <span>Built for Copilot CLI</span>
+            <span>Copilot CLI</span>
             <span>Claude Code</span>
             <span>Codex</span>
-            <span>Local developer workflows</span>
+            <span>Local-first</span>
           </div>
         </div>
 
@@ -59,7 +56,7 @@
             <ul class="hero-points">
               <li>Decompile the exact type your agent is reasoning about</li>
               <li>Target the best runtime assembly and framework automatically</li>
-              <li>Write readable source plus lookup manifests into local files</li>
+              <li>Write source + lookup manifests into local files</li>
             </ul>
             <div class="hero-command">
               <div class="terminal-top">
@@ -67,98 +64,8 @@
               </div>
               <pre><code>nupeek type --package Azure.Messaging.ServiceBus \
   --type Azure.Messaging.ServiceBus.ServiceBusSender \
-  --out deps-src --dry-run false</code></pre>
+  --out deps-src</code></pre>
             </div>
-          </article>
-
-          <article class="hero-panel secondary-panel">
-            <div class="panel-badge">What your agent gets</div>
-            <div class="mini-grid">
-              <div>
-                <strong>Readable C#</strong>
-                <p>Local decompiled files for the package type you asked for.</p>
-              </div>
-              <div>
-                <strong>Fast lookup</strong>
-                <p><code>index.json</code> and <code>manifest.json</code> for repeatable context.</p>
-              </div>
-              <div>
-                <strong>Safer debugging</strong>
-                <p>See retry behavior, guards, and side effects before changing code.</p>
-              </div>
-              <div>
-                <strong>Version clarity</strong>
-                <p>Inspect actual implementation paths instead of release-note summaries.</p>
-              </div>
-            </div>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <section class="proof-strip">
-      <div class="container proof-grid">
-        <div class="proof-item">
-          <span class="proof-label">Positioning</span>
-          <strong>Open-source CLI for AI coding agents working against NuGet dependencies</strong>
-        </div>
-        <div class="proof-item">
-          <span class="proof-label">Output</span>
-          <strong>Deterministic local files in <code>deps-src/</code>, not vague package summaries</strong>
-        </div>
-        <div class="proof-item">
-          <span class="proof-label">Use cases</span>
-          <strong>Debugging, package upgrades, refactors, architecture reviews</strong>
-        </div>
-      </div>
-    </section>
-
-    <section id="problem" class="section">
-      <div class="container section-stack">
-        <div class="section-heading">
-          <p class="eyebrow">From package blind spots to behavior-accurate decisions</p>
-          <h2>Nupeek is designed for the gap between package APIs and package reality.</h2>
-        </div>
-        <div class="feature-grid">
-          <article class="feature-card">
-            <span class="card-kicker">The problem</span>
-            <h3>Agents can call NuGet APIs long before they can inspect the implementation.</h3>
-            <p>That often means generic advice, fragile fixes, and incomplete debugging when the real behavior lives inside a compiled dependency.</p>
-            <ul class="bullet-list">
-              <li>Why is <code>ServiceBusSender</code> failing during retries?</li>
-              <li>Is this Polly policy safe for this path?</li>
-              <li>What changed between package versions?</li>
-            </ul>
-          </article>
-          <article id="solution" class="feature-card feature-card-accent">
-            <span class="card-kicker">The solution</span>
-            <h3>Pull only the source your agent needs and make it inspectable immediately.</h3>
-            <p>Nupeek keeps the workflow narrow, local, and deterministic so the model can reason from real code instead of inferred package behavior.</p>
-            <ul class="check-list">
-              <li>Find package and version</li>
-              <li>Select the best runtime target and TFM</li>
-              <li>Locate the requested type in the correct assembly</li>
-              <li>Generate readable C# plus quick lookup files</li>
-            </ul>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <section class="section">
-      <div class="container">
-        <div class="metrics-band">
-          <article>
-            <span class="metric-value">Specific types</span>
-            <p>Decompile the exact class your agent is reasoning about, not the entire package.</p>
-          </article>
-          <article>
-            <span class="metric-value">Local-first</span>
-            <p>Write outputs to your workspace so debugging context survives across prompts and sessions.</p>
-          </article>
-          <article>
-            <span class="metric-value">Agent-ready</span>
-            <p>Built for terminal-native workflows where speed and implementation accuracy matter.</p>
           </article>
         </div>
       </div>
@@ -168,73 +75,50 @@
       <div class="container section-stack">
         <div class="section-heading split-heading">
           <div>
-            <p class="eyebrow">Install and run</p>
-            <h2>Get Nupeek into the workflow fast.</h2>
+            <p class="eyebrow">Install</p>
           </div>
-          <p class="section-copy">Use the .NET global tool or the one-line installer, then point Nupeek at the package type your agent needs to understand.</p>
         </div>
-        <div class="install-grid">
-          <article class="install-card">
-            <span class="card-kicker">.NET global tool</span>
-            <h3>Standard setup for local developer machines.</h3>
-            <pre><code>dotnet tool install -g Nupeek
+        <div class="section-body">
+          <div class="install-grid">
+            <article class="install-card">
+              <span class="card-kicker">.NET global tool</span>
+              <div class="code-block">
+                <div class="code-head">
+                  <span>bash</span>
+                  <button class="copy-btn" data-copy-target="install-dotnet">Copy</button>
+                </div>
+                <pre><code id="install-dotnet">dotnet tool install -g Nupeek
 nupeek --help</code></pre>
-          </article>
-          <article class="install-card">
-            <span class="card-kicker">One-line installer</span>
-            <h3>Quick bootstrap for terminals and ephemeral environments.</h3>
-            <pre><code>curl -fsSL \
-  https://raw.githubusercontent.com/ghostmxvlshn/nupeek/main/install.sh | bash</code></pre>
-          </article>
+              </div>
+            </article>
+            <article class="install-card">
+              <span class="card-kicker">curl installer</span>
+              <div class="code-block">
+                <div class="code-head">
+                  <span>bash</span>
+                  <button class="copy-btn" data-copy-target="install-curl-pipe">Copy</button>
+                </div>
+                <pre><code id="install-curl-pipe">curl -fsSL https://raw.githubusercontent.com/ghostmxvlshn/nupeek/main/install.sh | bash</code></pre>
+              </div>
+            </article>
+          </div>
         </div>
       </div>
     </section>
 
     <section id="skill" class="section">
-      <div class="container">
-        <div class="cta-panel">
-          <div>
-            <p class="eyebrow">Agent skill file</p>
-            <h2>Download the Nupeek SKILL.md for your coding agents.</h2>
-            <p>Download this file so your agent knows exactly <strong>when</strong> to run Nupeek and <strong>how</strong> to use its output safely before suggesting code changes.</p>
-          </div>
-          <div class="cta-actions">
-            <a class="btn" href="./downloads/nupeek-agent-skill.md" download>Download SKILL.md</a>
-            <a class="btn ghost" href="#usage">See Nupeek output</a>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section">
       <div class="container section-stack">
         <div class="section-heading split-heading">
           <div>
-            <p class="eyebrow">How it works</p>
-            <h2>A narrow pipeline built for package-level clarity.</h2>
+            <p class="eyebrow">Skill</p>
           </div>
-          <p class="section-copy">Nupeek avoids broad decompilation passes and focuses on the exact code path your agent is trying to reason about.</p>
         </div>
-        <div class="timeline">
-          <article class="timeline-step">
-            <span class="timeline-index">01</span>
-            <h3>Resolve the package</h3>
-            <p>Read the package identity and version the project is actually using.</p>
-          </article>
-          <article class="timeline-step">
-            <span class="timeline-index">02</span>
-            <h3>Choose the runtime target</h3>
-            <p>Pick the most relevant target framework and assembly for the type lookup.</p>
-          </article>
-          <article class="timeline-step">
-            <span class="timeline-index">03</span>
-            <h3>Extract the requested type</h3>
-            <p>Find the symbol and generate readable decompiled C# where the agent can inspect it.</p>
-          </article>
-          <article class="timeline-step">
-            <span class="timeline-index">04</span>
-            <h3>Write stable local artifacts</h3>
-            <p>Save source and manifests into <code>deps-src/</code> for repeatable follow-up analysis.</p>
+        <div class="section-body">
+          <article class="content-card content-card-row">
+            <p>Plug this file into your agent setup and get consistent Nupeek usage out of the box.</p>
+            <div class="cta-actions">
+              <a class="btn" href="./downloads/nupeek-agent-skill.md" download>Download SKILL.md</a>
+            </div>
           </article>
         </div>
       </div>
@@ -244,36 +128,38 @@ nupeek --help</code></pre>
       <div class="container section-stack">
         <div class="section-heading split-heading">
           <div>
-            <p class="eyebrow">Usage screenshots</p>
-            <h2>Terminal output from real Nupeek runs.</h2>
+            <p class="eyebrow">Usage</p>
           </div>
-          <p class="section-copy">These captures show the CLI flow agents and developers see when locating types and exploring package contents.</p>
         </div>
-        <div class="shots">
-          <figure class="shot">
-            <img src="./assets/terminal-type.png" alt="Nupeek type command output screenshot" />
-            <figcaption><code>nupeek type ...</code></figcaption>
-          </figure>
-          <figure class="shot">
-            <img src="./assets/terminal-find.png" alt="Nupeek find command output screenshot" />
-            <figcaption><code>nupeek find ...</code></figcaption>
-          </figure>
+        <div class="section-body">
+          <div class="shots">
+            <figure class="shot">
+              <img src="./assets/terminal-type.png" alt="Nupeek type command output screenshot" />
+              <figcaption><code>nupeek type ...</code></figcaption>
+            </figure>
+            <figure class="shot">
+              <img src="./assets/terminal-find.png" alt="Nupeek find command output screenshot" />
+              <figcaption><code>nupeek find ...</code></figcaption>
+            </figure>
+          </div>
         </div>
       </div>
     </section>
 
     <section id="github" class="section">
-      <div class="container">
-        <div class="cta-panel">
+      <div class="container section-stack">
+        <div class="section-heading split-heading">
           <div>
-            <p class="eyebrow">Open source. Local-first. Agent-native.</p>
-            <h2>Use Nupeek when package internals matter to the decision in front of you.</h2>
-            <p>Nupeek is MIT licensed and built for real developer workflows where AI agents need direct implementation context instead of abstractions.</p>
+            <p class="eyebrow">GitHub</p>
           </div>
-          <div class="cta-actions">
-            <a class="btn" href="https://github.com/ghostmxvlshn/nupeek" target="_blank" rel="noreferrer">Star on GitHub</a>
-            <a class="btn ghost" href="#install">Install from CLI</a>
-          </div>
+        </div>
+        <div class="section-body">
+          <article class="content-card content-card-row">
+            <p>Source code, issues, and releases are all in one place.</p>
+            <div class="cta-actions">
+              <a class="btn" href="https://github.com/ghostmxvlshn/nupeek" target="_blank" rel="noreferrer">Star on GitHub</a>
+            </div>
+          </article>
         </div>
       </div>
     </section>
@@ -283,15 +169,38 @@ nupeek --help</code></pre>
     <div class="container footer-inner">
       <div>
         <a class="logo" href="#" aria-label="Nupeek home">nupeek</a>
-        <p class="footer-copy">See NuGet package internals fast, with output shaped for AI coding agents and human developers.</p>
+        <p class="footer-copy">See NuGet package internals fast, with output shaped for AI coding agents.</p>
       </div>
       <div class="footer-links">
-        <a href="#problem">Problem</a>
         <a href="#install">Install</a>
         <a href="#usage">Usage</a>
         <a href="https://github.com/ghostmxvlshn/nupeek" target="_blank" rel="noreferrer">GitHub ↗</a>
       </div>
     </div>
   </footer>
+
+  <script>
+    document.querySelectorAll('.copy-btn').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const targetId = button.getAttribute('data-copy-target');
+        const code = targetId ? document.getElementById(targetId) : null;
+        if (!code) return;
+
+        const text = code.textContent || '';
+        try {
+          await navigator.clipboard.writeText(text);
+          const previous = button.textContent;
+          button.textContent = 'Copied';
+          button.disabled = true;
+          setTimeout(() => {
+            button.textContent = previous || 'Copy';
+            button.disabled = false;
+          }, 1200);
+        } catch {
+          button.textContent = 'Copy failed';
+        }
+      });
+    });
+  </script>
 </body>
 </html>
