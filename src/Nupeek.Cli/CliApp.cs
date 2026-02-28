@@ -1,6 +1,5 @@
 using Nupeek.Core;
 using System.CommandLine;
-using System.CommandLine.Invocation;
 using System.Text;
 using System.Text.Json;
 
@@ -83,108 +82,17 @@ public static class CliApp
         root.AddGlobalOption(dryRunOption);
         root.AddGlobalOption(progressOption);
 
+        var globalOptions = new GlobalCliOptions(verboseOption, quietOption, dryRunOption, progressOption);
+
         root.Description += Environment.NewLine + Environment.NewLine +
             "Examples:" + Environment.NewLine +
             "  nupeek type --package Azure.Messaging.ServiceBus --type Azure.Messaging.ServiceBus.ServiceBusSender --out deps-src" + Environment.NewLine +
             "  nupeek find --package Polly --symbol Polly.Policy.Handle --out deps-src";
 
-        root.AddCommand(BuildTypeCommand(verboseOption, quietOption, dryRunOption, progressOption));
-        root.AddCommand(BuildFindCommand(verboseOption, quietOption, dryRunOption, progressOption));
+        root.AddCommand(TypeCommandFactory.Create(globalOptions, RunPlan));
+        root.AddCommand(FindCommandFactory.Create(globalOptions, RunPlan));
 
         return root;
-    }
-
-    private static Command BuildTypeCommand(Option<bool> verboseOption, Option<bool> quietOption, Option<bool> dryRunOption, Option<string> progressOption)
-    {
-        var packageOption = new Option<string>("--package", "NuGet package id") { IsRequired = true };
-        packageOption.AddAlias("-p");
-
-        var versionOption = new Option<string?>("--version", "NuGet package version. Defaults to latest.");
-        var tfmOption = new Option<string?>("--tfm", "Target framework moniker. Defaults to auto.");
-        var typeOption = new Option<string>("--type", "Fully-qualified type name (e.g. Namespace.Type)") { IsRequired = true };
-        var outOption = new Option<string>("--out", "Output directory (e.g. deps-src)") { IsRequired = true };
-        var formatOption = new Option<string>("--format", () => "text", "Output format: text (default) or json.");
-        var emitOption = new Option<string>("--emit", () => "files", "Emit mode: files (default) or agent.");
-        var maxCharsOption = new Option<int>("--max-chars", () => 12000, "Max inline source chars for --emit agent.");
-
-        var command = new Command("type", "Decompile a single type from a NuGet package.");
-        command.AddOption(packageOption);
-        command.AddOption(versionOption);
-        command.AddOption(tfmOption);
-        command.AddOption(typeOption);
-        command.AddOption(outOption);
-        command.AddOption(formatOption);
-        command.AddOption(emitOption);
-        command.AddOption(maxCharsOption);
-
-        command.SetHandler((InvocationContext context) =>
-        {
-            var parse = context.ParseResult;
-            Environment.ExitCode = RunPlan(new PlanRequest(
-                Command: "type",
-                Package: parse.GetValueForOption(packageOption)!,
-                Version: parse.GetValueForOption(versionOption) ?? "latest",
-                Tfm: parse.GetValueForOption(tfmOption) ?? "auto",
-                Type: parse.GetValueForOption(typeOption)!,
-                OutDir: parse.GetValueForOption(outOption)!,
-                Verbose: parse.GetValueForOption(verboseOption),
-                Quiet: parse.GetValueForOption(quietOption),
-                DryRun: parse.GetValueForOption(dryRunOption),
-                Format: parse.GetValueForOption(formatOption) ?? "text",
-                Emit: parse.GetValueForOption(emitOption) ?? "files",
-                MaxChars: parse.GetValueForOption(maxCharsOption),
-                Progress: parse.GetValueForOption(progressOption) ?? "auto",
-                SourceSymbol: null));
-        });
-
-        return command;
-    }
-
-    private static Command BuildFindCommand(Option<bool> verboseOption, Option<bool> quietOption, Option<bool> dryRunOption, Option<string> progressOption)
-    {
-        var packageOption = new Option<string>("--package", "NuGet package id") { IsRequired = true };
-        packageOption.AddAlias("-p");
-
-        var versionOption = new Option<string?>("--version", "NuGet package version. Defaults to latest.");
-        var tfmOption = new Option<string?>("--tfm", "Target framework moniker. Defaults to auto.");
-        var symbolOption = new Option<string>("--symbol", "Symbol name, e.g. Namespace.Type.Method") { IsRequired = true };
-        var outOption = new Option<string>("--out", "Output directory (e.g. deps-src)") { IsRequired = true };
-        var formatOption = new Option<string>("--format", () => "text", "Output format: text (default) or json.");
-        var emitOption = new Option<string>("--emit", () => "files", "Emit mode: files (default) or agent.");
-        var maxCharsOption = new Option<int>("--max-chars", () => 12000, "Max inline source chars for --emit agent.");
-
-        var command = new Command("find", "Resolve symbol to type and decompile that type.");
-        command.AddOption(packageOption);
-        command.AddOption(versionOption);
-        command.AddOption(tfmOption);
-        command.AddOption(symbolOption);
-        command.AddOption(outOption);
-        command.AddOption(formatOption);
-        command.AddOption(emitOption);
-        command.AddOption(maxCharsOption);
-
-        command.SetHandler((InvocationContext context) =>
-        {
-            var parse = context.ParseResult;
-            var symbol = parse.GetValueForOption(symbolOption)!;
-            Environment.ExitCode = RunPlan(new PlanRequest(
-                Command: "find",
-                Package: parse.GetValueForOption(packageOption)!,
-                Version: parse.GetValueForOption(versionOption) ?? "latest",
-                Tfm: parse.GetValueForOption(tfmOption) ?? "auto",
-                Type: SymbolParser.ToTypeName(symbol),
-                OutDir: parse.GetValueForOption(outOption)!,
-                Verbose: parse.GetValueForOption(verboseOption),
-                Quiet: parse.GetValueForOption(quietOption),
-                DryRun: parse.GetValueForOption(dryRunOption),
-                Format: parse.GetValueForOption(formatOption) ?? "text",
-                Emit: parse.GetValueForOption(emitOption) ?? "files",
-                MaxChars: parse.GetValueForOption(maxCharsOption),
-                Progress: parse.GetValueForOption(progressOption) ?? "auto",
-                SourceSymbol: symbol));
-        });
-
-        return command;
     }
 
     private static int RunPlan(PlanRequest request)
@@ -240,7 +148,7 @@ public static class CliApp
             return HandleRealRun(request, emit, maxChars);
         }
 
-        return ExecuteWithSpinner(request, () => HandleRealRun(request, emit, maxChars));
+        return ExecuteWithSpinner(() => HandleRealRun(request, emit, maxChars));
     }
 
     private static bool ShouldShowSpinner(PlanRequest request, string format, string progress)
@@ -263,7 +171,7 @@ public static class CliApp
         return !Console.IsErrorRedirected;
     }
 
-    private static CliOutcome ExecuteWithSpinner(PlanRequest request, Func<CliOutcome> action)
+    private static CliOutcome ExecuteWithSpinner(Func<CliOutcome> action)
     {
         using var spinner = new Spinner("Executing Nupeek", Console.Error);
         spinner.Start();
@@ -420,5 +328,4 @@ public static class CliApp
 
         return sb.ToString().TrimEnd();
     }
-
 }
