@@ -269,9 +269,18 @@ public static class CliApp
         using var spinner = new Spinner("Executing Nupeek", Console.Error);
         spinner.Start();
 
-        var outcome = action();
-        spinner.Stop(outcome.ExitCode == ExitCodes.Success ? "Done" : "Failed");
-        return outcome;
+        CliOutcome? outcome = null;
+
+        try
+        {
+            outcome = action();
+            return outcome;
+        }
+        finally
+        {
+            var status = outcome is not null && outcome.ExitCode == ExitCodes.Success ? "Done" : "Failed";
+            spinner.Stop(status);
+        }
     }
 
     private static CliOutcome HandleRealRun(PlanRequest request, string emit, int maxChars)
@@ -536,13 +545,17 @@ public static class CliApp
 
     private sealed class Spinner : IDisposable
     {
+        private const string ClearToEndOfLine = "\x1b[K";
         private static readonly char[] Frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 
         private readonly TextWriter _writer;
         private readonly string _label;
         private readonly Stopwatch _stopwatch = new();
+        private readonly Lock _sync = new();
         private CancellationTokenSource? _cts;
         private Task? _task;
+        private bool _isRunning;
+        private bool _isStopped;
 
         public Spinner(string label, TextWriter writer)
         {
@@ -552,52 +565,109 @@ public static class CliApp
 
         public void Start()
         {
-            _cts = new CancellationTokenSource();
-            _stopwatch.Start();
-            _task = Task.Run(() => RenderLoop(_cts.Token));
+            lock (_sync)
+            {
+                if (_isRunning)
+                {
+                    return;
+                }
+
+                _cts = new CancellationTokenSource();
+                _isRunning = true;
+                _isStopped = false;
+                _stopwatch.Restart();
+                _task = Task.Run(() => RenderLoopAsync(_cts.Token));
+            }
         }
 
         public void Stop(string status)
         {
-            if (_cts is null)
-            {
-                return;
-            }
-
-            _cts.Cancel();
-
-            try
-            {
-                _task?.Wait();
-            }
-            catch (AggregateException)
-            {
-                // Ignore cancellation propagation from background loop.
-            }
-
-            _stopwatch.Stop();
-            _writer.Write($"\r{status} ({_stopwatch.Elapsed.TotalSeconds:F1}s)\n");
-            _writer.Flush();
+            StopInternal(status, writeStatus: true);
         }
 
         public void Dispose()
         {
-            _cts?.Dispose();
+            try
+            {
+                StopInternal(string.Empty, writeStatus: false);
+            }
+            catch
+            {
+                // Dispose should be best-effort and never throw.
+            }
+            finally
+            {
+                lock (_sync)
+                {
+                    _cts?.Dispose();
+                    _cts = null;
+                    _task = null;
+                }
+            }
         }
 
-        private void RenderLoop(CancellationToken token)
+        private void StopInternal(string status, bool writeStatus)
+        {
+            CancellationTokenSource? cts;
+            Task? task;
+
+            lock (_sync)
+            {
+                if (_isStopped)
+                {
+                    return;
+                }
+
+                _isStopped = true;
+                _isRunning = false;
+                cts = _cts;
+                task = _task;
+            }
+
+            cts?.Cancel();
+
+            try
+            {
+                task?.GetAwaiter().GetResult();
+            }
+            catch (Exception ex) when (writeStatus is false || ex is OperationCanceledException or TaskCanceledException)
+            {
+                // swallow in Dispose() path, and ignore cancellation-only completion
+            }
+
+            lock (_sync)
+            {
+                _stopwatch.Stop();
+                _writer.Write($"\r{ClearToEndOfLine}");
+
+                if (writeStatus)
+                {
+                    _writer.Write($"{status} ({_stopwatch.Elapsed.TotalSeconds:F1}s)\n");
+                }
+
+                _writer.Flush();
+            }
+        }
+
+        private async Task RenderLoopAsync(CancellationToken token)
         {
             var index = 0;
 
             while (!token.IsCancellationRequested)
             {
-                _writer.Write($"\r{Frames[index]} {_label}...");
-                _writer.Flush();
+                var frame = Frames[index];
+
+                lock (_sync)
+                {
+                    _writer.Write($"\r{frame} {_label}...{ClearToEndOfLine}");
+                    _writer.Flush();
+                }
+
                 index = (index + 1) % Frames.Length;
 
                 try
                 {
-                    Task.Delay(80, token).Wait(token);
+                    await Task.Delay(80, token).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {
