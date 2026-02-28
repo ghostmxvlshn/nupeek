@@ -49,6 +49,10 @@ deps-src/
 - Prefer symlink or local `deps-src/` under repo for agent visibility.
 
 ## Open decisions
-- Naming: keep CLI name `depsrc` or rename to `nupeek` executable?
 - Package selection strategy for multi-dll packages (auto vs `--assembly` override)
 - TFM auto-selection heuristic defaults
+
+## Dev
+- Runtime: .NET 10 (`net10.0`)
+- CI: `.github/workflows/ci.yml` (restore/build/test)
+- Planning: `PLAN.md`
