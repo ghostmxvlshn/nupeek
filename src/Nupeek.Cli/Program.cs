@@ -1,7 +1,6 @@
 using Nupeek.Cli;
 using Nupeek.Core;
 using System.CommandLine;
-using System.CommandLine.Invocation;
 
 return await BuildRootCommand().InvokeAsync(args);
 
@@ -49,9 +48,12 @@ static Command BuildTypeCommand(Option<bool> verboseOption, Option<bool> quietOp
     command.AddOption(typeOption);
     command.AddOption(outOption);
 
-    command.Handler = CommandHandler.Create<string, string?, string?, string, string, bool, bool, bool>(
-        (package, version, tfm, type, @out, verbose, quiet, dryRun) =>
-            RunPlan("type", package, version ?? "latest", tfm ?? "auto", type, @out, verbose, quiet, dryRun));
+    command.SetHandler((string package, string? version, string? tfm, string type, string @out, bool verbose, bool quiet, bool dryRun) =>
+        {
+            var exitCode = RunPlan("type", package, version ?? "latest", tfm ?? "auto", type, @out, verbose, quiet, dryRun);
+            Environment.ExitCode = exitCode;
+        },
+        packageOption, versionOption, tfmOption, typeOption, outOption, verboseOption, quietOption, dryRunOption);
 
     return command;
 }
@@ -74,21 +76,22 @@ static Command BuildFindCommand(Option<bool> verboseOption, Option<bool> quietOp
     command.AddOption(symbolOption);
     command.AddOption(outOption);
 
-    command.Handler = CommandHandler.Create<string, string?, string?, string, string, bool, bool, bool>(
-        (package, version, tfm, symbol, @out, verbose, quiet, dryRun) =>
+    command.SetHandler((string package, string? version, string? tfm, string symbol, string @out, bool verbose, bool quiet, bool dryRun) =>
         {
             try
             {
                 var typeName = SymbolParser.ToTypeName(symbol);
-                return RunPlan("find", package, version ?? "latest", tfm ?? "auto", typeName, @out, verbose, quiet, dryRun, symbol);
+                var exitCode = RunPlan("find", package, version ?? "latest", tfm ?? "auto", typeName, @out, verbose, quiet, dryRun, symbol);
+                Environment.ExitCode = exitCode;
             }
             catch (ArgumentException ex)
             {
                 Console.Error.WriteLine($"Invalid symbol: {ex.Message}");
                 Console.Error.WriteLine("Try: --symbol Namespace.Type.Method");
-                return ExitCodes.InvalidArguments;
+                Environment.ExitCode = ExitCodes.InvalidArguments;
             }
-        });
+        },
+        packageOption, versionOption, tfmOption, symbolOption, outOption, verboseOption, quietOption, dryRunOption);
 
     return command;
 }
