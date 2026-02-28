@@ -1,24 +1,36 @@
 # Nupeek
 
-Targeted NuGet decompilation for coding agents (Copilot CLI / Claude Code).
+Nupeek is a CLI that decompiles **specific NuGet types** into local readable C# so AI coding agents can reason from real implementation details.
 
-## Vision
-When a developer calls a method from a NuGet package, generate readable decompiled C# for the specific type into `deps-src/` so agents can inspect implementation details on demand.
+## Why this project exists
 
-## Why this project
-- Avoid decompiling all transitive dependencies (too noisy/heavy)
-- Keep output small and relevant to the exact symbol/type being used
-- Cache + index results for fast repeated lookups
+When agents use NuGet APIs, they usually don’t see the source behind them quickly. That causes:
+- wrong assumptions about behavior
+- slower debugging
+- weaker refactoring suggestions
 
-## Proposed CLI
+Nupeek solves this by generating only what you need (type-level), not a massive full dependency dump.
+
+## How it helps (real examples)
+
+- **Debug behavior differences**
+  - “Why does `ServiceBusSender` behave this way?”
+  - Decompile that exact type and inspect implementation.
+
+- **Write safer integration code**
+  - Agent can inspect retry/null/exception paths in package internals.
+
+- **Improve AI answers quality**
+  - Instead of guessing from docs, your agent reads `deps-src/*.decompiled.cs`.
+
+## Core commands
 
 ```bash
 nupeek type --package <id> [--version <v>] [--tfm <tfm>] --type "<Namespace.Type>" --out deps-src
 nupeek find --package <id> [--version <v>] [--tfm <tfm>] --symbol "<Namespace.Type.Method>" --out deps-src
-nupeek dump --package <id> [--version <v>] [--tfm <tfm>] --out deps-src
 ```
 
-## Output contract
+## Typical output
 
 ```
 deps-src/
@@ -26,62 +38,25 @@ deps-src/
     <TypeName>.decompiled.cs
   index.json
   manifest.json
-  README.md
 ```
 
-## MVP scope
-1. `nupeek type` and `nupeek find`
-2. Download/extract `.nupkg`
-3. Pick target `lib/<tfm>/`
-4. Scan DLL metadata to find assembly containing target type
-5. Decompile only that type via ILSpy engine
-6. Write output + update `index.json` and `manifest.json`
+## Quick start
 
-## Tech stack (initial)
-- .NET 10 console app
-- `ICSharpCode.Decompiler`
-- `NuGet.Protocol`
-- `NuGet.Packaging`
-- `NuGet.Configuration`
+See install + usage docs: **`docs/INSTALL.md`**
 
-## Notes
-- Keep generated sources local; avoid redistributing decompiled output.
-- Prefer symlink or local `deps-src/` under repo for agent visibility.
+## Project docs
 
-## Open decisions
-- Package selection strategy for multi-dll packages (auto vs `--assembly` override)
-- TFM auto-selection heuristic defaults
+- Install: `docs/INSTALL.md`
+- Release: `docs/RELEASE.md`
+- CLI UX standards: `docs/CLI_BEST_PRACTICES.md`
+- Landing page: `web/index.html`
 
 ## Dev
-- Runtime: .NET 10 (`net10.0`)
-- CI: `.github/workflows/ci.yml` (restore/build/test)
-- Planning: `PLAN.md`
-- CLI UX standards: `docs/CLI_BEST_PRACTICES.md` (derived from https://clig.dev)
-- C# style rules: `.editorconfig`
-- Central package management: `Directory.Packages.props`
-- Install guide: `docs/INSTALL.md` (includes curl|sh installer)
-- Release guide: `docs/RELEASE.md`
-- Marketing page: `web/index.html`
-
-## Landing page preview
-
-```bash
-cd web
-python3 -m http.server 8080
-# open http://localhost:8080
-```
-
-## Git hooks (recommended)
-Install local hooks once per clone:
 
 ```bash
 ./scripts/install-hooks.sh
 ```
 
-Enabled hooks:
-- `pre-commit`: `dotnet format Nupeek.slnx --verify-no-changes` + `dotnet test Nupeek.slnx --configuration Release`
-- `commit-msg`: enforces **icon + Conventional Commits** format
-
-Commit/PR title format:
-- `<icon> <type>(optional-scope): <description>`
-- Example: `✨ feat(cli): add argument validation`
+Hooks:
+- `pre-commit`: format + tests
+- `commit-msg`: icon + Conventional Commit format
