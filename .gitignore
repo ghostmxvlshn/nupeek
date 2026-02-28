@@ -1,0 +1,7 @@
+bin/
+obj/
+.depsrc/
+*.user
+*.suo
+.DS_Store
+deps-src/
