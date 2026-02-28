@@ -5,7 +5,7 @@ namespace Nupeek.Cli;
 
 internal static class TypeCommandFactory
 {
-    public static Command Create(GlobalCliOptions globalOptions, Func<PlanRequest, int> runPlan)
+    public static Command Create(GlobalCliOptions globalOptions, Func<PlanRequest, Task<int>> runPlanAsync)
     {
         var packageOption = new Option<string>("--package", "NuGet package id") { IsRequired = true };
         packageOption.AddAlias("-p");
@@ -28,10 +28,10 @@ internal static class TypeCommandFactory
         command.AddOption(emitOption);
         command.AddOption(maxCharsOption);
 
-        command.SetHandler((InvocationContext context) =>
+        command.SetHandler(async (InvocationContext context) =>
         {
             var parse = context.ParseResult;
-            Environment.ExitCode = runPlan(new PlanRequest(
+            Environment.ExitCode = await runPlanAsync(new PlanRequest(
                 Command: "type",
                 Package: parse.GetValueForOption(packageOption)!,
                 Version: parse.GetValueForOption(versionOption) ?? "latest",
@@ -45,7 +45,7 @@ internal static class TypeCommandFactory
                 Emit: parse.GetValueForOption(emitOption) ?? "files",
                 MaxChars: parse.GetValueForOption(maxCharsOption),
                 Progress: parse.GetValueForOption(globalOptions.Progress) ?? "auto",
-                SourceSymbol: null));
+                SourceSymbol: null)).ConfigureAwait(false);
         });
 
         return command;

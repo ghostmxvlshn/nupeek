@@ -89,13 +89,13 @@ public static class CliApp
             "  nupeek type --package Azure.Messaging.ServiceBus --type Azure.Messaging.ServiceBus.ServiceBusSender --out deps-src" + Environment.NewLine +
             "  nupeek find --package Polly --symbol Polly.Policy.Handle --out deps-src";
 
-        root.AddCommand(TypeCommandFactory.Create(globalOptions, RunPlan));
-        root.AddCommand(FindCommandFactory.Create(globalOptions, RunPlan));
+        root.AddCommand(TypeCommandFactory.Create(globalOptions, RunPlanAsync));
+        root.AddCommand(FindCommandFactory.Create(globalOptions, RunPlanAsync));
 
         return root;
     }
 
-    private static int RunPlan(PlanRequest request)
+    private static async Task<int> RunPlanAsync(PlanRequest request)
     {
         var format = InputValidation.NormalizeFormat(request.Format);
         var emit = InputValidation.NormalizeEmit(request.Emit);
@@ -107,7 +107,7 @@ public static class CliApp
             Console.Error.WriteLine("[nupeek] preparing execution plan...");
         }
 
-        var outcome = ExecutePlan(request, format, emit, progress, maxChars);
+        var outcome = await ExecutePlanAsync(request, format, emit, progress, maxChars).ConfigureAwait(false);
         EmitOutcome(outcome, request, format, emit);
 
         if (request.Verbose)
@@ -136,19 +136,19 @@ public static class CliApp
             false);
     }
 
-    private static CliOutcome ExecutePlan(PlanRequest request, string format, string emit, string progress, int maxChars)
+    private static Task<CliOutcome> ExecutePlanAsync(PlanRequest request, string format, string emit, string progress, int maxChars)
     {
         if (request.DryRun)
         {
-            return HandleDryRun(request);
+            return Task.FromResult(HandleDryRun(request));
         }
 
         if (!ShouldShowSpinner(request, format, progress))
         {
-            return HandleRealRun(request, emit, maxChars);
+            return HandleRealRunAsync(request, emit, maxChars);
         }
 
-        return ExecuteWithSpinner(() => HandleRealRun(request, emit, maxChars));
+        return ExecuteWithSpinnerAsync(() => HandleRealRunAsync(request, emit, maxChars));
     }
 
     private static bool ShouldShowSpinner(PlanRequest request, string format, string progress)
@@ -171,7 +171,7 @@ public static class CliApp
         return !Console.IsErrorRedirected;
     }
 
-    private static CliOutcome ExecuteWithSpinner(Func<CliOutcome> action)
+    private static async Task<CliOutcome> ExecuteWithSpinnerAsync(Func<Task<CliOutcome>> action)
     {
         using var spinner = new Spinner("Executing Nupeek", Console.Error);
         spinner.Start();
@@ -180,7 +180,7 @@ public static class CliApp
 
         try
         {
-            outcome = action();
+            outcome = await action().ConfigureAwait(false);
             return outcome;
         }
         finally
@@ -190,17 +190,17 @@ public static class CliApp
         }
     }
 
-    private static CliOutcome HandleRealRun(PlanRequest request, string emit, int maxChars)
+    private static async Task<CliOutcome> HandleRealRunAsync(PlanRequest request, string emit, int maxChars)
     {
         try
         {
             var pipeline = new TypeDecompilePipeline();
-            var result = pipeline.RunAsync(new TypeDecompileRequest(
+            var result = await pipeline.RunAsync(new TypeDecompileRequest(
                 request.Package,
                 string.Equals(request.Version, "latest", StringComparison.OrdinalIgnoreCase) ? null : request.Version,
                 string.Equals(request.Tfm, "auto", StringComparison.OrdinalIgnoreCase) ? null : request.Tfm,
                 request.Type,
-                request.OutDir)).GetAwaiter().GetResult();
+                request.OutDir)).ConfigureAwait(false);
 
             var inlineSource = InlineSourceReader.ReadInlineSource(result.OutputPath, emit, maxChars);
 
