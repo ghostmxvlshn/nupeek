@@ -166,6 +166,42 @@ public static class CliApp
             Console.WriteLine(BuildPlanText(command, package, version, tfm, type, outDir, dryRun, sourceSymbol));
         }
 
+        if (!dryRun)
+        {
+            try
+            {
+                var pipeline = new TypeDecompilePipeline();
+                var result = pipeline.RunAsync(new TypeDecompileRequest(
+                    package,
+                    string.Equals(version, "latest", StringComparison.OrdinalIgnoreCase) ? null : version,
+                    string.Equals(tfm, "auto", StringComparison.OrdinalIgnoreCase) ? null : tfm,
+                    type,
+                    outDir)).GetAwaiter().GetResult();
+
+                if (!quiet)
+                {
+                    Console.WriteLine($"outputPath: {result.OutputPath}");
+                    Console.WriteLine($"indexPath: {result.IndexPath}");
+                    Console.WriteLine($"manifestPath: {result.ManifestPath}");
+                }
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
+            {
+                Console.Error.WriteLine(ex.Message);
+                return ExitCodes.TypeOrSymbolNotFound;
+            }
+            catch (InvalidOperationException ex)
+            {
+                Console.Error.WriteLine(ex.Message);
+                return ExitCodes.PackageResolutionFailure;
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Decompilation failed: {ex.Message}");
+                return ExitCodes.DecompilationFailure;
+            }
+        }
+
         if (verbose)
         {
             Console.Error.WriteLine("[nupeek] completed.");
