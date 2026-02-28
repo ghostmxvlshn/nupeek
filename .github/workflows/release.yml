@@ -2,8 +2,7 @@ name: release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [ main ]
 
 jobs:
   publish:
@@ -20,6 +19,25 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      - name: Compute version
+        id: version
+        shell: bash
+        run: |
+          VERSION_PREFIX=$(sed -n 's:.*<VersionPrefix>\(.*\)</VersionPrefix>.*:\1:p' src/Nupeek.Cli/Nupeek.Cli.csproj | head -n 1)
+          if [ -z "$VERSION_PREFIX" ]; then
+            echo "VersionPrefix not found in src/Nupeek.Cli/Nupeek.Cli.csproj"
+            exit 1
+          fi
+
+          PACKAGE_VERSION="${VERSION_PREFIX}.${GITHUB_RUN_NUMBER}"
+          TAG_NAME="v${PACKAGE_VERSION}"
+
+          echo "package_version=$PACKAGE_VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
+
+          echo "Computed package version: $PACKAGE_VERSION"
+          echo "Computed release tag: $TAG_NAME"
+
       - name: Restore
         run: dotnet restore Nupeek.slnx
 
@@ -30,7 +48,12 @@ jobs:
         run: dotnet test Nupeek.slnx --configuration Release --no-build
 
       - name: Pack tool
-        run: dotnet pack src/Nupeek.Cli/Nupeek.Cli.csproj --configuration Release --no-build --output ./artifacts
+        run: |
+          dotnet pack src/Nupeek.Cli/Nupeek.Cli.csproj \
+            --configuration Release \
+            --no-build \
+            --output ./artifacts \
+            /p:Version=${{ steps.version.outputs.package_version }}
 
       - name: Publish to NuGet
         env:
@@ -41,10 +64,17 @@ jobs:
             --source "https://api.nuget.org/v3/index.json" \
             --skip-duplicate
 
+      - name: Create and push tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "${{ steps.version.outputs.tag_name }}"
+          git push origin "${{ steps.version.outputs.tag_name }}"
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" ./artifacts/*.nupkg \
-            --title "${GITHUB_REF_NAME}" \
-            --notes "Nupeek release ${GITHUB_REF_NAME}"
+          gh release create "${{ steps.version.outputs.tag_name }}" ./artifacts/*.nupkg \
+            --title "${{ steps.version.outputs.tag_name }}" \
+            --notes "Nupeek release ${{ steps.version.outputs.tag_name }}"
