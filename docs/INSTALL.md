@@ -19,13 +19,13 @@ dotnet tool install -g Nupeek
 ### One-line installer (curl | sh)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ghostmxvlshn/nupeek/main/install.sh | bash
+curl -fsSL https://nupeek.dev/install.sh | bash
 ```
 
 Pin a version:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ghostmxvlshn/nupeek/main/install.sh | VERSION=0.1.0 bash
+curl -fsSL https://nupeek.dev/install.sh | VERSION=0.1.0 bash
 ```
 
 Update later:
