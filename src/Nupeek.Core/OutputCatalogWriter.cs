@@ -5,6 +5,7 @@ namespace Nupeek.Core;
 
 public sealed class OutputCatalogWriter
 {
+    // Maintains index/manifest files used by agents and follow-up CLI commands.
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,

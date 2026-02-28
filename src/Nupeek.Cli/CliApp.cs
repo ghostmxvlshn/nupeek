@@ -6,15 +6,18 @@ namespace Nupeek.Cli;
 
 public static class CliApp
 {
+    // Entrypoint for CLI execution with stable exit-code mapping.
     public static async Task<int> RunAsync(string[] args, IConsole? console = null)
     {
         var root = BuildRootCommand();
 
+        // Let System.CommandLine render built-in help path directly.
         if (args.Any(static a => a is "--help" or "-h"))
         {
             return await root.InvokeAsync(args, console).ConfigureAwait(false);
         }
 
+        // Parse first so we can provide consistent, user-friendly argument errors.
         var parseResult = root.Parse(args);
 
         if (parseResult.Errors.Count > 0)
@@ -170,6 +173,7 @@ public static class CliApp
         {
             try
             {
+                // Real execution path: acquire package -> locate type -> decompile -> write catalogs.
                 var pipeline = new TypeDecompilePipeline();
                 var result = pipeline.RunAsync(new TypeDecompileRequest(
                     package,

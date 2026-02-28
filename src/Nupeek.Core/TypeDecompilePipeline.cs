@@ -4,6 +4,7 @@ namespace Nupeek.Core;
 
 public sealed class TypeDecompilePipeline
 {
+    // Orchestrates end-to-end decompilation for one type.
     private readonly NuGetPackageAcquirer _acquirer;
     private readonly PackageTypeLocator _locator;
     private readonly TypeDecompiler _decompiler;
@@ -32,10 +33,13 @@ public sealed class TypeDecompilePipeline
         ArgumentException.ThrowIfNullOrWhiteSpace(request.TypeName);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.OutputRoot);
 
+        // Keep package artifacts in a deterministic cache under output root.
         var cacheRoot = Path.Combine(request.OutputRoot, ".cache");
 
+        // 1) Acquire and extract package.
         var package = await _acquirer.AcquireAsync(new NuGetPackageRequest(request.PackageId, request.Version, cacheRoot), cancellationToken).ConfigureAwait(false);
 
+        // 2) Resolve TFM/lib and locate the assembly containing the target type.
         var content = _locator.Locate(new PackageContentRequest(
             package.ExtractedPath,
             request.TypeName,
@@ -48,8 +52,10 @@ public sealed class TypeDecompilePipeline
             content.SelectedTfm,
             request.TypeName);
 
+        // 3) Decompile the type into a stable output location.
         _decompiler.DecompileType(content.AssemblyPath, request.TypeName, outputPath);
 
+        // 4) Update machine-readable catalogs for fast lookup and provenance.
         var indexPath = _catalogWriter.WriteIndex(request.OutputRoot, request.TypeName, outputPath);
         var manifestPath = _catalogWriter.WriteManifest(request.OutputRoot, new ManifestEntry(
             package.PackageId,

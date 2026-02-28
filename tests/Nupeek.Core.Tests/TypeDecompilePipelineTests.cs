@@ -5,11 +5,13 @@ public class TypeDecompilePipelineTests
     [Fact]
     public async Task RunAsync_WritesDecompiledTypeAndCatalogFiles()
     {
+        // Arrange
         var outputRoot = Path.Combine(Path.GetTempPath(), "nupeek-tests", Guid.NewGuid().ToString("N"), "deps-src");
+        var pipeline = new TypeDecompilePipeline();
 
         try
         {
-            var pipeline = new TypeDecompilePipeline();
+            // Act
             var result = await pipeline.RunAsync(new TypeDecompileRequest(
                 "Humanizer.Core",
                 "2.14.1",
@@ -17,6 +19,7 @@ public class TypeDecompilePipelineTests
                 "Humanizer.StringHumanizeExtensions",
                 outputRoot));
 
+            // Assert
             Assert.True(File.Exists(result.OutputPath));
             Assert.True(File.Exists(result.IndexPath));
             Assert.True(File.Exists(result.ManifestPath));

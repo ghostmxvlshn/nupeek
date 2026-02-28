@@ -5,20 +5,36 @@ public class CliAppTests
     [Fact]
     public async Task RunAsync_UnknownCommand_ReturnsInvalidArguments()
     {
-        var code = await CliApp.RunAsync(["wat"]);
+        // Arrange
+        var args = new[] { "wat" };
+
+        // Act
+        var code = await CliApp.RunAsync(args);
+
+        // Assert
         Assert.Equal(ExitCodes.InvalidArguments, code);
     }
 
     [Fact]
     public async Task RunAsync_Help_ReturnsSuccess()
     {
-        var code = await CliApp.RunAsync(["--help"]);
+        // Arrange
+        var args = new[] { "--help" };
+
+        // Act
+        var code = await CliApp.RunAsync(args);
+
+        // Assert
         Assert.Equal(ExitCodes.Success, code);
     }
 
     [Fact]
     public void BuildPlanText_IncludesSymbolWhenProvided()
     {
+        // Arrange
+        const string sourceSymbol = "Polly.Policy.Handle";
+
+        // Act
         var text = CliApp.BuildPlanText(
             command: "find",
             package: "Polly",
@@ -27,8 +43,9 @@ public class CliAppTests
             type: "Polly.Policy",
             outDir: "deps-src",
             dryRun: true,
-            sourceSymbol: "Polly.Policy.Handle");
+            sourceSymbol: sourceSymbol);
 
+        // Assert
         Assert.Contains("symbol: Polly.Policy.Handle", text, StringComparison.Ordinal);
         Assert.Contains("type: Polly.Policy", text, StringComparison.Ordinal);
     }
