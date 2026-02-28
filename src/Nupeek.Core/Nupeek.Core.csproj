@@ -7,5 +7,6 @@
   <ItemGroup>
     <PackageReference Include="NuGet.Protocol" />
     <PackageReference Include="NuGet.Packaging" />
+    <PackageReference Include="ICSharpCode.Decompiler" />
   </ItemGroup>
 </Project>
