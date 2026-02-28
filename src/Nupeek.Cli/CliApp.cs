@@ -4,22 +4,26 @@ using System.Text;
 
 namespace Nupeek.Cli;
 
+/// <summary>
+/// Builds and executes Nupeek CLI command tree.
+/// </summary>
 public static class CliApp
 {
-    // Entrypoint for CLI execution with stable exit-code mapping.
+    /// <summary>
+    /// Runs CLI flow and maps errors to stable exit codes.
+    /// </summary>
     public static async Task<int> RunAsync(string[] args, IConsole? console = null)
     {
         var root = BuildRootCommand();
 
-        // Let System.CommandLine render built-in help path directly.
+        // Let command-line library render help path as-is.
         if (args.Any(static a => a is "--help" or "-h"))
         {
             return await root.InvokeAsync(args, console).ConfigureAwait(false);
         }
 
-        // Parse first so we can provide consistent, user-friendly argument errors.
+        // Parse first to provide concise argument diagnostics.
         var parseResult = root.Parse(args);
-
         if (parseResult.Errors.Count > 0)
         {
             foreach (var error in parseResult.Errors)
@@ -33,8 +37,7 @@ public static class CliApp
 
         try
         {
-            var invokeResult = await root.InvokeAsync(args, console).ConfigureAwait(false);
-            return invokeResult;
+            return await root.InvokeAsync(args, console).ConfigureAwait(false);
         }
         catch (ArgumentException ex)
         {
@@ -48,6 +51,9 @@ public static class CliApp
         }
     }
 
+    /// <summary>
+    /// Creates the root command and global options.
+    /// </summary>
     public static RootCommand BuildRootCommand()
     {
         var verboseOption = new Option<bool>("--verbose", "Show extra diagnostics on stderr.");
@@ -74,6 +80,9 @@ public static class CliApp
         return root;
     }
 
+    /// <summary>
+    /// Builds <c>type</c> command and handler.
+    /// </summary>
     private static Command BuildTypeCommand(Option<bool> verboseOption, Option<bool> quietOption, Option<bool> dryRunOption)
     {
         var packageOption = new Option<string>("--package", "NuGet package id") { IsRequired = true };
@@ -110,6 +119,9 @@ public static class CliApp
         return command;
     }
 
+    /// <summary>
+    /// Builds <c>find</c> command and handler.
+    /// </summary>
     private static Command BuildFindCommand(Option<bool> verboseOption, Option<bool> quietOption, Option<bool> dryRunOption)
     {
         var packageOption = new Option<string>("--package", "NuGet package id") { IsRequired = true };
@@ -131,6 +143,7 @@ public static class CliApp
         command.SetHandler(
             (string package, string? version, string? tfm, string symbol, string @out, bool verbose, bool quiet, bool dryRun) =>
             {
+                // Convert symbol-like input to type name before executing pipeline.
                 var typeName = SymbolParser.ToTypeName(symbol);
                 var exitCode = RunPlan("find", package, version ?? "latest", tfm ?? "auto", typeName, @out, verbose, quiet, dryRun, symbol);
                 Environment.ExitCode = exitCode;
@@ -147,6 +160,9 @@ public static class CliApp
         return command;
     }
 
+    /// <summary>
+    /// Executes dry-run plan output or real decompilation pipeline.
+    /// </summary>
     private static int RunPlan(
         string command,
         string package,
@@ -173,7 +189,7 @@ public static class CliApp
         {
             try
             {
-                // Real execution path: acquire package -> locate type -> decompile -> write catalogs.
+                // Real execution: package -> locate type -> decompile -> write catalogs.
                 var pipeline = new TypeDecompilePipeline();
                 var result = pipeline.RunAsync(new TypeDecompileRequest(
                     package,
@@ -214,6 +230,9 @@ public static class CliApp
         return ExitCodes.Success;
     }
 
+    /// <summary>
+    /// Builds plain-text execution plan output for user visibility.
+    /// </summary>
     public static string BuildPlanText(
         string command,
         string package,
