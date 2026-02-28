@@ -5,5 +5,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Nupeek.Core.Tests/Nupeek.Core.Tests.csproj" />
+    <Project Path="tests/Nupeek.Cli.Tests/Nupeek.Cli.Tests.csproj" />
   </Folder>
 </Solution>
