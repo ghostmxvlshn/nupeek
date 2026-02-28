@@ -1,0 +1,72 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.{cs,csx}]
+indent_size = 4
+
+# Prefer explicit accessibility for maintainability
+dotnet_style_require_accessibility_modifiers = for_non_interface_members:suggestion
+
+# var preferences
+csharp_style_var_for_built_in_types = false:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_var_elsewhere = false:suggestion
+
+# Expression-level preferences
+csharp_prefer_braces = true:warning
+csharp_prefer_simple_using_statement = true:suggestion
+csharp_style_prefer_switch_expression = true:suggestion
+csharp_style_prefer_pattern_matching = true:suggestion
+csharp_style_throw_expression = true:suggestion
+
+# Object/collection initialization
+dotnet_style_object_initializer = true:suggestion
+dotnet_style_collection_initializer = true:suggestion
+dotnet_style_prefer_auto_properties = true:suggestion
+
+# Nullability and modifiers
+dotnet_style_coalesce_expression = true:suggestion
+dotnet_style_null_propagation = true:suggestion
+dotnet_style_prefer_is_null_check_over_reference_equality_method = true:suggestion
+
+# Names
+# Interfaces should begin with I
+dotnet_naming_rule.interfaces_should_start_with_i.severity = warning
+dotnet_naming_rule.interfaces_should_start_with_i.symbols = interfaces
+dotnet_naming_rule.interfaces_should_start_with_i.style = prefix_i
+
+dotnet_naming_symbols.interfaces.applicable_kinds = interface
+dotnet_naming_symbols.interfaces.applicable_accessibilities = *
+dotnet_naming_symbols.interfaces.required_modifiers = *
+
+dotnet_naming_style.prefix_i.required_prefix = I
+dotnet_naming_style.prefix_i.capitalization = pascal_case
+
+# Private fields use _camelCase
+dotnet_naming_rule.private_fields_should_be_camel_case_with_underscore.severity = suggestion
+dotnet_naming_rule.private_fields_should_be_camel_case_with_underscore.symbols = private_fields
+dotnet_naming_rule.private_fields_should_be_camel_case_with_underscore.style = private_field_style
+
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+dotnet_naming_symbols.private_fields.required_modifiers = *
+
+dotnet_naming_style.private_field_style.required_prefix = _
+dotnet_naming_style.private_field_style.capitalization = camel_case
+
+# Diagnostic severities (high-value defaults)
+dotnet_diagnostic.IDE0005.severity = warning   # unnecessary using
+dotnet_diagnostic.IDE0060.severity = suggestion # remove unused parameter
+dotnet_diagnostic.IDE0051.severity = suggestion # remove unused private member
+dotnet_diagnostic.CA1822.severity = suggestion  # mark members static
+dotnet_diagnostic.CA2000.severity = warning     # dispose objects

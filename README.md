@@ -57,3 +57,15 @@ deps-src/
 - CI: `.github/workflows/ci.yml` (restore/build/test)
 - Planning: `PLAN.md`
 - CLI UX standards: `docs/CLI_BEST_PRACTICES.md` (derived from https://clig.dev)
+- C# style rules: `.editorconfig`
+
+## Git hooks (recommended)
+Install local hooks once per clone:
+
+```bash
+./scripts/install-hooks.sh
+```
+
+Enabled pre-commit checks:
+- `dotnet format Nupeek.sln --verify-no-changes`
+- `dotnet test Nupeek.sln --configuration Release`
