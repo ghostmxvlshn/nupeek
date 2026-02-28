@@ -2,9 +2,25 @@
 
 Nupeek is a CLI that decompiles **specific NuGet types** into local readable C# so AI coding agents can reason from real implementation details.
 
-## Why Nupeek
+## The problem
 
-Agents often call package APIs without seeing internals quickly. Nupeek fills that gap with targeted decompilation (type-level, not full dependency dumps), so debugging and code suggestions are more accurate.
+AI coding agents can use methods from **NuGet packages**, but they often can’t inspect package implementation fast enough.
+
+That causes:
+- generic advice instead of behavior-accurate guidance
+- slower debugging when edge cases happen in package internals
+- risky refactors based on assumptions
+
+Examples:
+- “Why is `ServiceBusSender` failing on retries?”
+- “Is this Polly path safe to retry or can it duplicate side effects?”
+- “What changed in this package behavior after version upgrade?”
+
+## The solution
+
+Nupeek decompiles only the type you care about and writes it locally to `deps-src/`, plus lookup catalogs (`index.json`, `manifest.json`).
+
+So agents can reason from actual implementation details instead of guesswork.
 
 ## Quick example
 
