@@ -11,8 +11,8 @@ Without source visibility, agents often infer behavior from signatures/docs only
 ## Core commands
 
 ```bash
-nupeek type --package <id> [--version <v>] [--tfm <tfm>] --type "<Namespace.Type>" --out deps-src
-nupeek find --package <id> [--version <v>] [--tfm <tfm>] --symbol "<Namespace.Type.Method>" --out deps-src
+nupeek type --package <id> [--version <v>] [--tfm <tfm>] --type "<Namespace.Type>" --out deps-src [--format text|json]
+nupeek find --package <id> [--version <v>] [--tfm <tfm>] --symbol "<Namespace.Type.Method>" --out deps-src [--format text|json]
 ```
 
 ## Typical output layout

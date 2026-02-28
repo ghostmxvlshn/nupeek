@@ -28,6 +28,9 @@ So agents can reason from actual implementation details instead of guesswork.
 nupeek type --package Azure.Messaging.ServiceBus \
   --type Azure.Messaging.ServiceBus.ServiceBusSender \
   --out deps-src --dry-run false
+
+# machine-readable contract for agents/tools
+nupeek type --package Polly --type Polly.Policy --out deps-src --format json
 ```
 
 Output goes to:

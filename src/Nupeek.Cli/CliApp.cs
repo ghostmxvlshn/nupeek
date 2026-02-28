@@ -1,6 +1,8 @@
 using Nupeek.Core;
 using System.CommandLine;
+using System.CommandLine.Invocation;
 using System.Text;
+using System.Text.Json;
 
 namespace Nupeek.Cli;
 
@@ -9,6 +11,11 @@ namespace Nupeek.Cli;
 /// </summary>
 public static class CliApp
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+    };
+
     /// <summary>
     /// Runs CLI flow and maps errors to stable exit codes.
     /// </summary>
@@ -16,14 +23,11 @@ public static class CliApp
     {
         var root = BuildRootCommand();
 
-        // Let command-line library render help path as-is.
         if (args.Any(static a => a is "--help" or "-h"))
         {
-            var helpCode = await root.InvokeAsync(args, console).ConfigureAwait(false);
-            return helpCode;
+            return await root.InvokeAsync(args, console).ConfigureAwait(false);
         }
 
-        // Parse first to provide concise argument diagnostics.
         var parseResult = root.Parse(args);
         if (parseResult.Errors.Count > 0)
         {
@@ -38,7 +42,6 @@ public static class CliApp
 
         try
         {
-            // System.CommandLine beta handlers here set Environment.ExitCode; InvokeAsync may still return 0.
             Environment.ExitCode = ExitCodes.Success;
             var invokeCode = await root.InvokeAsync(args, console).ConfigureAwait(false);
             return invokeCode != ExitCodes.Success ? invokeCode : Environment.ExitCode;
@@ -84,9 +87,6 @@ public static class CliApp
         return root;
     }
 
-    /// <summary>
-    /// Builds <c>type</c> command and handler.
-    /// </summary>
     private static Command BuildTypeCommand(Option<bool> verboseOption, Option<bool> quietOption, Option<bool> dryRunOption)
     {
         var packageOption = new Option<string>("--package", "NuGet package id") { IsRequired = true };
@@ -94,9 +94,9 @@ public static class CliApp
 
         var versionOption = new Option<string?>("--version", "NuGet package version. Defaults to latest.");
         var tfmOption = new Option<string?>("--tfm", "Target framework moniker. Defaults to auto.");
-
         var typeOption = new Option<string>("--type", "Fully-qualified type name (e.g. Namespace.Type)") { IsRequired = true };
         var outOption = new Option<string>("--out", "Output directory (e.g. deps-src)") { IsRequired = true };
+        var formatOption = new Option<string>("--format", () => "text", "Output format: text (default) or json.");
 
         var command = new Command("type", "Decompile a single type from a NuGet package.");
         command.AddOption(packageOption);
@@ -104,27 +104,28 @@ public static class CliApp
         command.AddOption(tfmOption);
         command.AddOption(typeOption);
         command.AddOption(outOption);
+        command.AddOption(formatOption);
 
-        command.SetHandler(
-            (string package, string? version, string? tfm, string type, string @out, bool verbose, bool quiet, bool dryRun) =>
-            {
-                Environment.ExitCode = RunPlan("type", package, version ?? "latest", tfm ?? "auto", type, @out, verbose, quiet, dryRun);
-            },
-            packageOption,
-            versionOption,
-            tfmOption,
-            typeOption,
-            outOption,
-            verboseOption,
-            quietOption,
-            dryRunOption);
+        command.SetHandler((InvocationContext context) =>
+        {
+            var parse = context.ParseResult;
+            Environment.ExitCode = RunPlan(new PlanRequest(
+                Command: "type",
+                Package: parse.GetValueForOption(packageOption)!,
+                Version: parse.GetValueForOption(versionOption) ?? "latest",
+                Tfm: parse.GetValueForOption(tfmOption) ?? "auto",
+                Type: parse.GetValueForOption(typeOption)!,
+                OutDir: parse.GetValueForOption(outOption)!,
+                Verbose: parse.GetValueForOption(verboseOption),
+                Quiet: parse.GetValueForOption(quietOption),
+                DryRun: parse.GetValueForOption(dryRunOption),
+                Format: parse.GetValueForOption(formatOption) ?? "text",
+                SourceSymbol: null));
+        });
 
         return command;
     }
 
-    /// <summary>
-    /// Builds <c>find</c> command and handler.
-    /// </summary>
     private static Command BuildFindCommand(Option<bool> verboseOption, Option<bool> quietOption, Option<bool> dryRunOption)
     {
         var packageOption = new Option<string>("--package", "NuGet package id") { IsRequired = true };
@@ -132,9 +133,9 @@ public static class CliApp
 
         var versionOption = new Option<string?>("--version", "NuGet package version. Defaults to latest.");
         var tfmOption = new Option<string?>("--tfm", "Target framework moniker. Defaults to auto.");
-
         var symbolOption = new Option<string>("--symbol", "Symbol name, e.g. Namespace.Type.Method") { IsRequired = true };
         var outOption = new Option<string>("--out", "Output directory (e.g. deps-src)") { IsRequired = true };
+        var formatOption = new Option<string>("--format", () => "text", "Output format: text (default) or json.");
 
         var command = new Command("find", "Resolve symbol to type and decompile that type.");
         command.AddOption(packageOption);
@@ -142,94 +143,157 @@ public static class CliApp
         command.AddOption(tfmOption);
         command.AddOption(symbolOption);
         command.AddOption(outOption);
+        command.AddOption(formatOption);
 
-        command.SetHandler(
-            (string package, string? version, string? tfm, string symbol, string @out, bool verbose, bool quiet, bool dryRun) =>
-            {
-                // Convert symbol-like input to type name before executing pipeline.
-                var typeName = SymbolParser.ToTypeName(symbol);
-                Environment.ExitCode = RunPlan("find", package, version ?? "latest", tfm ?? "auto", typeName, @out, verbose, quiet, dryRun, symbol);
-            },
-            packageOption,
-            versionOption,
-            tfmOption,
-            symbolOption,
-            outOption,
-            verboseOption,
-            quietOption,
-            dryRunOption);
+        command.SetHandler((InvocationContext context) =>
+        {
+            var parse = context.ParseResult;
+            var symbol = parse.GetValueForOption(symbolOption)!;
+            Environment.ExitCode = RunPlan(new PlanRequest(
+                Command: "find",
+                Package: parse.GetValueForOption(packageOption)!,
+                Version: parse.GetValueForOption(versionOption) ?? "latest",
+                Tfm: parse.GetValueForOption(tfmOption) ?? "auto",
+                Type: SymbolParser.ToTypeName(symbol),
+                OutDir: parse.GetValueForOption(outOption)!,
+                Verbose: parse.GetValueForOption(verboseOption),
+                Quiet: parse.GetValueForOption(quietOption),
+                DryRun: parse.GetValueForOption(dryRunOption),
+                Format: parse.GetValueForOption(formatOption) ?? "text",
+                SourceSymbol: symbol));
+        });
 
         return command;
     }
 
-    /// <summary>
-    /// Executes dry-run plan output or real decompilation pipeline.
-    /// </summary>
-    private static int RunPlan(
-        string command,
-        string package,
-        string version,
-        string tfm,
-        string type,
-        string outDir,
-        bool verbose,
-        bool quiet,
-        bool dryRun,
-        string? sourceSymbol = null)
+    private static int RunPlan(PlanRequest request)
     {
-        if (verbose)
+        var format = NormalizeFormat(request.Format);
+
+        if (request.Verbose)
         {
             Console.Error.WriteLine("[nupeek] preparing execution plan...");
         }
 
-        if (!quiet)
-        {
-            Console.WriteLine(BuildPlanText(command, package, version, tfm, type, outDir, dryRun, sourceSymbol));
-        }
+        var outcome = request.DryRun ? HandleDryRun(request) : HandleRealRun(request);
+        EmitOutcome(outcome, request, format);
 
-        if (!dryRun)
-        {
-            try
-            {
-                // Real execution: package -> locate type -> decompile -> write catalogs.
-                var pipeline = new TypeDecompilePipeline();
-                var result = pipeline.RunAsync(new TypeDecompileRequest(
-                    package,
-                    string.Equals(version, "latest", StringComparison.OrdinalIgnoreCase) ? null : version,
-                    string.Equals(tfm, "auto", StringComparison.OrdinalIgnoreCase) ? null : tfm,
-                    type,
-                    outDir)).GetAwaiter().GetResult();
-
-                if (!quiet)
-                {
-                    Console.WriteLine($"outputPath: {result.OutputPath}");
-                    Console.WriteLine($"indexPath: {result.IndexPath}");
-                    Console.WriteLine($"manifestPath: {result.ManifestPath}");
-                }
-            }
-            catch (InvalidOperationException ex) when (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
-            {
-                Console.Error.WriteLine(ex.Message);
-                return ExitCodes.TypeOrSymbolNotFound;
-            }
-            catch (InvalidOperationException ex)
-            {
-                Console.Error.WriteLine(ex.Message);
-                return ExitCodes.PackageResolutionFailure;
-            }
-            catch (Exception ex)
-            {
-                Console.Error.WriteLine($"Decompilation failed: {ex.Message}");
-                return ExitCodes.DecompilationFailure;
-            }
-        }
-
-        if (verbose)
+        if (request.Verbose)
         {
             Console.Error.WriteLine("[nupeek] completed.");
         }
 
-        return ExitCodes.Success;
+        return outcome.ExitCode;
+    }
+
+    private static CliOutcome HandleDryRun(PlanRequest request)
+    {
+        return new CliOutcome(
+            ExitCodes.Success,
+            null,
+            request.Package,
+            request.Version,
+            request.Tfm,
+            null,
+            null,
+            null,
+            null);
+    }
+
+    private static CliOutcome HandleRealRun(PlanRequest request)
+    {
+        try
+        {
+            var pipeline = new TypeDecompilePipeline();
+            var result = pipeline.RunAsync(new TypeDecompileRequest(
+                request.Package,
+                string.Equals(request.Version, "latest", StringComparison.OrdinalIgnoreCase) ? null : request.Version,
+                string.Equals(request.Tfm, "auto", StringComparison.OrdinalIgnoreCase) ? null : request.Tfm,
+                request.Type,
+                request.OutDir)).GetAwaiter().GetResult();
+
+            return new CliOutcome(
+                ExitCodes.Success,
+                null,
+                result.PackageId,
+                result.Version,
+                result.Tfm,
+                result.AssemblyPath,
+                result.OutputPath,
+                result.IndexPath,
+                result.ManifestPath);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
+        {
+            return new CliOutcome(ExitCodes.TypeOrSymbolNotFound, ex.Message, request.Package, request.Version, request.Tfm, null, null, null, null);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return new CliOutcome(ExitCodes.PackageResolutionFailure, ex.Message, request.Package, request.Version, request.Tfm, null, null, null, null);
+        }
+        catch (Exception ex)
+        {
+            return new CliOutcome(ExitCodes.DecompilationFailure, $"Decompilation failed: {ex.Message}", request.Package, request.Version, request.Tfm, null, null, null, null);
+        }
+    }
+
+    private static void EmitOutcome(CliOutcome outcome, PlanRequest request, string format)
+    {
+        if (string.Equals(format, "json", StringComparison.Ordinal))
+        {
+            WriteJson(new CliRunResult(
+                request.Command,
+                outcome.PackageId,
+                outcome.Version,
+                outcome.SelectedTfm,
+                string.Equals(request.Command, "type", StringComparison.Ordinal) ? request.Type : null,
+                request.SourceSymbol,
+                request.Type,
+                outcome.AssemblyPath,
+                outcome.OutputPath,
+                outcome.IndexPath,
+                outcome.ManifestPath,
+                request.DryRun,
+                outcome.ExitCode,
+                outcome.Error));
+            return;
+        }
+
+        if (outcome.ExitCode != ExitCodes.Success)
+        {
+            Console.Error.WriteLine(outcome.Error);
+            return;
+        }
+
+        if (request.Quiet)
+        {
+            return;
+        }
+
+        Console.WriteLine(BuildPlanText(request.Command, request.Package, request.Version, request.Tfm, request.Type, request.OutDir, request.DryRun, request.SourceSymbol));
+
+        if (!request.DryRun)
+        {
+            Console.WriteLine($"outputPath: {outcome.OutputPath}");
+            Console.WriteLine($"indexPath: {outcome.IndexPath}");
+            Console.WriteLine($"manifestPath: {outcome.ManifestPath}");
+        }
+    }
+
+    private static string NormalizeFormat(string format)
+    {
+        if (string.Equals(format, "text", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(format, "json", StringComparison.OrdinalIgnoreCase))
+        {
+            return format.ToLowerInvariant();
+        }
+
+        throw new ArgumentException("Invalid --format value. Allowed: text, json.", nameof(format));
+    }
+
+    private static void WriteJson(CliRunResult payload)
+    {
+        Console.WriteLine(JsonSerializer.Serialize(payload, JsonOptions));
     }
 
     /// <summary>
@@ -263,4 +327,44 @@ public static class CliApp
 
         return sb.ToString().TrimEnd();
     }
+
+    private sealed record PlanRequest(
+        string Command,
+        string Package,
+        string Version,
+        string Tfm,
+        string Type,
+        string OutDir,
+        bool Verbose,
+        bool Quiet,
+        bool DryRun,
+        string Format,
+        string? SourceSymbol);
+
+    private sealed record CliOutcome(
+        int ExitCode,
+        string? Error,
+        string PackageId,
+        string Version,
+        string SelectedTfm,
+        string? AssemblyPath,
+        string? OutputPath,
+        string? IndexPath,
+        string? ManifestPath);
+
+    private sealed record CliRunResult(
+        string Command,
+        string PackageId,
+        string Version,
+        string SelectedTfm,
+        string? InputType,
+        string? InputSymbol,
+        string ResolvedType,
+        string? AssemblyPath,
+        string? OutputPath,
+        string? IndexPath,
+        string? ManifestPath,
+        bool DryRun,
+        int ExitCode,
+        string? Error);
 }
