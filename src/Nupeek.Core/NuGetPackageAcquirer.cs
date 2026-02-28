@@ -7,36 +7,47 @@ using System.IO.Compression;
 
 namespace Nupeek.Core;
 
+/// <summary>
+/// Resolves, downloads, and extracts NuGet packages into deterministic local cache.
+/// </summary>
 public sealed class NuGetPackageAcquirer
 {
-    // Resolves, downloads, and extracts a NuGet package into local cache.
+    /// <summary>
+    /// Acquires package content in local cache and returns resolved paths/metadata.
+    /// </summary>
     public async Task<NuGetPackageResult> AcquireAsync(NuGetPackageRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(request.PackageId);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.CacheRoot);
 
         var logger = NullLogger.Instance;
+
+        // Discover available package sources once for this operation.
         var repositories = GetRepositories();
+
+        // Normalize id and resolve version (explicit or latest stable).
         var packageId = request.PackageId.Trim();
         var version = await ResolveVersionAsync(repositories, packageId, request.Version, logger, cancellationToken).ConfigureAwait(false);
 
+        // Compute deterministic cache paths for this package/version.
         var packageDir = NuGetCacheLayout.PackageDirectory(request.CacheRoot, packageId, version);
         var nupkgPath = NuGetCacheLayout.NupkgPath(request.CacheRoot, packageId, version);
         var extractedPath = NuGetCacheLayout.ExtractedPath(request.CacheRoot, packageId, version);
 
         Directory.CreateDirectory(packageDir);
 
-        // Download once; reuse local cache on subsequent runs.
+        // Download package once; reuse if already cached.
         if (!File.Exists(nupkgPath))
         {
             await DownloadPackageAsync(repositories, packageId, version, nupkgPath, logger, cancellationToken).ConfigureAwait(false);
         }
 
-        // Extract once; re-extract only when folder is missing/empty.
+        // Extract once; if folder is missing/empty, perform extraction.
         if (!Directory.Exists(extractedPath) || Directory.GetFileSystemEntries(extractedPath).Length == 0)
         {
             if (Directory.Exists(extractedPath))
             {
+                // Clean partial/corrupt extraction before retry.
                 Directory.Delete(extractedPath, recursive: true);
             }
 
@@ -46,6 +57,9 @@ public sealed class NuGetPackageAcquirer
         return new NuGetPackageResult(packageId, version, packageDir, nupkgPath, extractedPath);
     }
 
+    /// <summary>
+    /// Builds source repository list from NuGet config with fallback to nuget.org.
+    /// </summary>
     private static IReadOnlyList<SourceRepository> GetRepositories()
     {
         var providers = Repository.Provider.GetCoreV3();
@@ -65,6 +79,9 @@ public sealed class NuGetPackageAcquirer
         return packageSources.Select(source => new SourceRepository(source, providers)).ToList();
     }
 
+    /// <summary>
+    /// Resolves package version from explicit input or latest stable metadata.
+    /// </summary>
     private static async Task<string> ResolveVersionAsync(
         IReadOnlyList<SourceRepository> repositories,
         string packageId,
@@ -79,6 +96,7 @@ public sealed class NuGetPackageAcquirer
 
         var versions = new List<NuGetVersion>();
 
+        // Aggregate available versions across all configured repositories.
         foreach (var repository in repositories)
         {
             var metadata = await repository.GetResourceAsync<PackageMetadataResource>(cancellationToken).ConfigureAwait(false);
@@ -100,6 +118,9 @@ public sealed class NuGetPackageAcquirer
         return latest.ToNormalizedString();
     }
 
+    /// <summary>
+    /// Downloads requested package nupkg to destination path.
+    /// </summary>
     private static async Task DownloadPackageAsync(
         IReadOnlyList<SourceRepository> repositories,
         string packageId,
@@ -110,6 +131,7 @@ public sealed class NuGetPackageAcquirer
     {
         var identity = new PackageIdentity(packageId, NuGetVersion.Parse(version));
 
+        // Try repositories in order and stop at first successful download.
         foreach (var repository in repositories)
         {
             var resource = await repository.GetResourceAsync<FindPackageByIdResource>(cancellationToken).ConfigureAwait(false);
