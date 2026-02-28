@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if ! command -v dotnet >/dev/null 2>&1; then
+  echo "[pre-commit] dotnet not found in PATH; install .NET SDK first." >&2
+  exit 1
+fi
+
+echo "[pre-commit] Running dotnet format..."
+dotnet format Nupeek.slnx --verify-no-changes
+
+echo "[pre-commit] Running dotnet test..."
+dotnet test Nupeek.slnx --configuration Release --nologo
+
+echo "[pre-commit] OK"

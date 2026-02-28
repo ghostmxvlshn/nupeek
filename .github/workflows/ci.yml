@@ -19,10 +19,10 @@ jobs:
           dotnet-version: 10.0.x
 
       - name: Restore
-        run: dotnet restore Nupeek.sln
+        run: dotnet restore Nupeek.slnx
 
       - name: Build
-        run: dotnet build Nupeek.sln --configuration Release --no-restore
+        run: dotnet build Nupeek.slnx --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test Nupeek.sln --configuration Release --no-build --logger "trx;LogFileName=test-results.trx"
+        run: dotnet test Nupeek.slnx --configuration Release --no-build --logger "trx;LogFileName=test-results.trx"

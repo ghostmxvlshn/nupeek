@@ -1,5 +1,3 @@
-using Nupeek.Core;
-
 namespace Nupeek.Core.Tests;
 
 public class TfmSelectorTests

@@ -1,5 +1,3 @@
-using System.Text.RegularExpressions;
-
 namespace Nupeek.Core;
 
 public static class OutputPathBuilder
@@ -17,5 +15,11 @@ public static class OutputPathBuilder
     }
 
     private static string SanitizeFileName(string value)
-        => Regex.Replace(value, "[^a-zA-Z0-9_.-]", "_");
+    {
+        var chars = value
+            .Select(c => char.IsLetterOrDigit(c) || c is '_' or '.' or '-' ? c : '_')
+            .ToArray();
+
+        return new string(chars);
+    }
 }
