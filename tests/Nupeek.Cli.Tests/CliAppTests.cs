@@ -1,5 +1,3 @@
-using Nupeek.Cli;
-
 namespace Nupeek.Cli.Tests;
 
 public class CliAppTests

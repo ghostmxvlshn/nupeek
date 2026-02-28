@@ -9,6 +9,12 @@ public static class CliApp
     public static async Task<int> RunAsync(string[] args, IConsole? console = null)
     {
         var root = BuildRootCommand();
+
+        if (args.Any(static a => a is "--help" or "-h"))
+        {
+            return await root.InvokeAsync(args, console).ConfigureAwait(false);
+        }
+
         var parseResult = root.Parse(args);
 
         if (parseResult.Errors.Count > 0)
