@@ -5,6 +5,7 @@ namespace Nupeek.Core;
 
 public sealed class PackageTypeLocator
 {
+    // Resolves the best lib/TFM directory and finds the assembly that defines a target type.
     public PackageContentResult Locate(PackageContentRequest request)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(request.ExtractedPath);
@@ -27,6 +28,7 @@ public sealed class PackageTypeLocator
             throw new InvalidOperationException($"No target frameworks found under: {libRoot}");
         }
 
+        // If user does not specify TFM, pick best known target for current runtime/tooling.
         var selectedTfm = string.IsNullOrWhiteSpace(request.Tfm)
             ? TfmSelector.SelectBest(tfmDirectories)
             : request.Tfm.Trim();

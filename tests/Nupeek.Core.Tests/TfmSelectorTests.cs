@@ -5,14 +5,26 @@ public class TfmSelectorTests
     [Fact]
     public void SelectBest_PrefersNet10()
     {
-        var result = TfmSelector.SelectBest(["netstandard2.0", "net8.0", "net10.0"]);
+        // Arrange
+        var tfms = new[] { "netstandard2.0", "net8.0", "net10.0" };
+
+        // Act
+        var result = TfmSelector.SelectBest(tfms);
+
+        // Assert
         Assert.Equal("net10.0", result);
     }
 
     [Fact]
     public void SelectBest_FallsBackAlphabetical_WhenNoPriorityMatch()
     {
-        var result = TfmSelector.SelectBest(["foo", "bar"]);
+        // Arrange
+        var tfms = new[] { "foo", "bar" };
+
+        // Act
+        var result = TfmSelector.SelectBest(tfms);
+
+        // Assert
         Assert.Equal("bar", result);
     }
 }

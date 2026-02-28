@@ -9,6 +9,7 @@ namespace Nupeek.Core;
 
 public sealed class NuGetPackageAcquirer
 {
+    // Resolves, downloads, and extracts a NuGet package into local cache.
     public async Task<NuGetPackageResult> AcquireAsync(NuGetPackageRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(request.PackageId);
@@ -25,11 +26,13 @@ public sealed class NuGetPackageAcquirer
 
         Directory.CreateDirectory(packageDir);
 
+        // Download once; reuse local cache on subsequent runs.
         if (!File.Exists(nupkgPath))
         {
             await DownloadPackageAsync(repositories, packageId, version, nupkgPath, logger, cancellationToken).ConfigureAwait(false);
         }
 
+        // Extract once; re-extract only when folder is missing/empty.
         if (!Directory.Exists(extractedPath) || Directory.GetFileSystemEntries(extractedPath).Length == 0)
         {
             if (Directory.Exists(extractedPath))
