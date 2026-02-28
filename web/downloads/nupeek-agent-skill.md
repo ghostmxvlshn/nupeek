@@ -37,12 +37,26 @@ nupeek type --package <PackageId> --type <Namespace.Type> --out deps-src
 nupeek find --package <PackageId> --symbol <Namespace.TypeOrMember> --out deps-src
 ```
 
-4. Inspect generated files under `deps-src/`:
+4. Choose output mode based on task:
+- **Default (`--emit files`)** when you want reproducible local artifacts and can read files from disk.
+- **Agent fast path (`--emit agent --format json`)** when you want inline source + metadata immediately in command output.
+
+Examples:
+
+```bash
+# Reproducible files-first mode
+nupeek type --package <PackageId> --type <Namespace.Type> --out deps-src --emit files
+
+# Agent-ready inline mode (no extra file-read step)
+nupeek type --package <PackageId> --type <Namespace.Type> --out deps-src --format json --emit agent --max-chars 12000
+```
+
+5. Inspect generated files under `deps-src/` when using files mode:
 - Decompiled source file(s)
 - `index.json` for quick navigation
 - `manifest.json` for run metadata
 
-5. Base guidance/patches on observed implementation, not API guesswork.
+6. Base guidance/patches on observed implementation, not API guesswork.
 
 ## Output Contract
 
@@ -51,6 +65,14 @@ When using Nupeek, report:
 - target framework / assembly selected
 - file path(s) used for evidence
 - concise conclusion tied to observed code
+
+## CLI Options to Use Intentionally
+
+- `--format text|json` → human vs machine-readable output
+- `--emit files|agent` → files-first vs inline agent payload
+- `--max-chars <n>` → inline source cap for `--emit agent`
+- `--progress auto|always|never` → terminal spinner behavior
+- `--dry-run` → show execution plan without decompiling
 
 ## Safety + Scope
 

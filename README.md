@@ -30,7 +30,7 @@ nupeek type --package Azure.Messaging.ServiceBus \
   --out deps-src --dry-run false --progress auto
 
 # machine-readable contract for agents/tools
-nupeek type --package Polly --type Polly.Policy --out deps-src --format json
+nupeek type --package Polly --type Polly.Policy --out deps-src --format json --emit agent --max-chars 12000
 ```
 
 Output goes to:
