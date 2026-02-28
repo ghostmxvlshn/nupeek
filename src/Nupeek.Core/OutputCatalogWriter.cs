@@ -17,17 +17,23 @@ public sealed class OutputCatalogWriter
     /// Upserts type-to-output-path mapping in <c>index.json</c>.
     /// </summary>
     public string WriteIndex(string outputRoot, string typeName, string outputPath)
+        => WriteIndexAsync(outputRoot, typeName, outputPath).GetAwaiter().GetResult();
+
+    /// <summary>
+    /// Upserts type-to-output-path mapping in <c>index.json</c> (async).
+    /// </summary>
+    public async Task<string> WriteIndexAsync(string outputRoot, string typeName, string outputPath, CancellationToken cancellationToken = default)
     {
         var indexPath = Path.Combine(outputRoot, "index.json");
         Directory.CreateDirectory(outputRoot);
 
         // Read existing index if present, otherwise start a new map.
-        var index = ReadJson<TypeIndex>(indexPath) ?? new TypeIndex();
+        var index = await ReadJsonAsync<TypeIndex>(indexPath, cancellationToken).ConfigureAwait(false) ?? new TypeIndex();
 
         // Last write wins for the same type.
         index[typeName] = outputPath;
 
-        File.WriteAllText(indexPath, JsonSerializer.Serialize(index, JsonOptions));
+        await File.WriteAllTextAsync(indexPath, JsonSerializer.Serialize(index, JsonOptions), cancellationToken).ConfigureAwait(false);
         return indexPath;
     }
 
@@ -35,12 +41,18 @@ public sealed class OutputCatalogWriter
     /// Upserts manifest entry in <c>manifest.json</c>.
     /// </summary>
     public string WriteManifest(string outputRoot, ManifestEntry entry)
+        => WriteManifestAsync(outputRoot, entry).GetAwaiter().GetResult();
+
+    /// <summary>
+    /// Upserts manifest entry in <c>manifest.json</c> (async).
+    /// </summary>
+    public async Task<string> WriteManifestAsync(string outputRoot, ManifestEntry entry, CancellationToken cancellationToken = default)
     {
         var manifestPath = Path.Combine(outputRoot, "manifest.json");
         Directory.CreateDirectory(outputRoot);
 
         // Read existing manifest list if present.
-        var manifest = ReadJson<List<ManifestEntry>>(manifestPath) ?? [];
+        var manifest = await ReadJsonAsync<List<ManifestEntry>>(manifestPath, cancellationToken).ConfigureAwait(false) ?? [];
 
         // Unique key: package/version/tfm/type.
         var existingIndex = manifest.FindIndex(x =>
@@ -58,7 +70,7 @@ public sealed class OutputCatalogWriter
             manifest.Add(entry);
         }
 
-        File.WriteAllText(manifestPath, JsonSerializer.Serialize(manifest, JsonOptions));
+        await File.WriteAllTextAsync(manifestPath, JsonSerializer.Serialize(manifest, JsonOptions), cancellationToken).ConfigureAwait(false);
         return manifestPath;
     }
 
@@ -66,13 +78,19 @@ public sealed class OutputCatalogWriter
     /// Reads JSON file into target type. Returns default when file is missing/empty.
     /// </summary>
     private static T? ReadJson<T>(string path)
+        => ReadJsonAsync<T>(path).GetAwaiter().GetResult();
+
+    /// <summary>
+    /// Reads JSON file into target type (async). Returns default when file is missing/empty.
+    /// </summary>
+    private static async Task<T?> ReadJsonAsync<T>(string path, CancellationToken cancellationToken = default)
     {
         if (!File.Exists(path))
         {
             return default;
         }
 
-        var json = File.ReadAllText(path);
+        var json = await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(json))
         {
             return default;
