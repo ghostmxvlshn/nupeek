@@ -60,6 +60,7 @@ deps-src/
 - C# style rules: `.editorconfig`
 - Central package management: `Directory.Packages.props`
 - Install guide: `docs/INSTALL.md`
+- Release guide: `docs/RELEASE.md`
 
 ## Git hooks (recommended)
 Install local hooks once per clone:
