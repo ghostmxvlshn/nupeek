@@ -6,7 +6,7 @@ namespace Nupeek.Cli;
 
 internal static class FindCommandFactory
 {
-    public static Command Create(GlobalCliOptions globalOptions, Func<PlanRequest, int> runPlan)
+    public static Command Create(GlobalCliOptions globalOptions, Func<PlanRequest, Task<int>> runPlanAsync)
     {
         var packageOption = new Option<string>("--package", "NuGet package id") { IsRequired = true };
         packageOption.AddAlias("-p");
@@ -29,11 +29,11 @@ internal static class FindCommandFactory
         command.AddOption(emitOption);
         command.AddOption(maxCharsOption);
 
-        command.SetHandler((InvocationContext context) =>
+        command.SetHandler(async (InvocationContext context) =>
         {
             var parse = context.ParseResult;
             var symbol = parse.GetValueForOption(symbolOption)!;
-            Environment.ExitCode = runPlan(new PlanRequest(
+            Environment.ExitCode = await runPlanAsync(new PlanRequest(
                 Command: "find",
                 Package: parse.GetValueForOption(packageOption)!,
                 Version: parse.GetValueForOption(versionOption) ?? "latest",
@@ -47,7 +47,7 @@ internal static class FindCommandFactory
                 Emit: parse.GetValueForOption(emitOption) ?? "files",
                 MaxChars: parse.GetValueForOption(maxCharsOption),
                 Progress: parse.GetValueForOption(globalOptions.Progress) ?? "auto",
-                SourceSymbol: symbol));
+                SourceSymbol: symbol)).ConfigureAwait(false);
         });
 
         return command;
