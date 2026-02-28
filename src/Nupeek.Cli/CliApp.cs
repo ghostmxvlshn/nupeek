@@ -1,7 +1,6 @@
 using Nupeek.Core;
 using System.CommandLine;
 using System.CommandLine.Invocation;
-using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 
@@ -190,10 +189,10 @@ public static class CliApp
 
     private static int RunPlan(PlanRequest request)
     {
-        var format = NormalizeFormat(request.Format);
-        var emit = NormalizeEmit(request.Emit);
-        var progress = NormalizeProgress(request.Progress);
-        var maxChars = NormalizeMaxChars(request.MaxChars);
+        var format = InputValidation.NormalizeFormat(request.Format);
+        var emit = InputValidation.NormalizeEmit(request.Emit);
+        var progress = InputValidation.NormalizeProgress(request.Progress);
+        var maxChars = InputValidation.NormalizeMaxChars(request.MaxChars);
 
         if (request.Verbose)
         {
@@ -295,7 +294,7 @@ public static class CliApp
                 request.Type,
                 request.OutDir)).GetAwaiter().GetResult();
 
-            var inlineSource = ReadInlineSource(result.OutputPath, emit, maxChars);
+            var inlineSource = InlineSourceReader.ReadInlineSource(result.OutputPath, emit, maxChars);
 
             return new CliOutcome(
                 ExitCodes.Success,
@@ -385,69 +384,6 @@ public static class CliApp
         }
     }
 
-    private static string NormalizeFormat(string format)
-    {
-        if (string.Equals(format, "text", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(format, "json", StringComparison.OrdinalIgnoreCase))
-        {
-            return format.ToLowerInvariant();
-        }
-
-        throw new ArgumentException("Invalid --format value. Allowed: text, json.", nameof(format));
-    }
-
-    private static string NormalizeProgress(string progress)
-    {
-        if (string.Equals(progress, "auto", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(progress, "always", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(progress, "never", StringComparison.OrdinalIgnoreCase))
-        {
-            return progress.ToLowerInvariant();
-        }
-
-        throw new ArgumentException("Invalid --progress value. Allowed: auto, always, never.", nameof(progress));
-    }
-
-    private static string NormalizeEmit(string emit)
-    {
-        if (string.Equals(emit, "files", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(emit, "agent", StringComparison.OrdinalIgnoreCase))
-        {
-            return emit.ToLowerInvariant();
-        }
-
-        throw new ArgumentException("Invalid --emit value. Allowed: files, agent.", nameof(emit));
-    }
-
-    private static int NormalizeMaxChars(int maxChars)
-    {
-        if (maxChars < 200)
-        {
-            throw new ArgumentException("Invalid --max-chars value. Minimum is 200.", nameof(maxChars));
-        }
-
-        return maxChars;
-    }
-
-    private static InlineSourceResult ReadInlineSource(string outputPath, string emit, int maxChars)
-    {
-        if (!string.Equals(emit, "agent", StringComparison.Ordinal) || !File.Exists(outputPath))
-        {
-            return new InlineSourceResult(null, null, null, false);
-        }
-
-        var source = File.ReadAllText(outputPath);
-        var originalChars = source.Length;
-        var truncated = source.Length > maxChars;
-
-        if (truncated)
-        {
-            source = source[..maxChars];
-        }
-
-        return new InlineSourceResult(source, maxChars, originalChars, truncated);
-    }
-
     private static void WriteJson(CliRunResult payload)
     {
         Console.WriteLine(JsonSerializer.Serialize(payload, JsonOptions));
@@ -485,195 +421,4 @@ public static class CliApp
         return sb.ToString().TrimEnd();
     }
 
-    private sealed record PlanRequest(
-        string Command,
-        string Package,
-        string Version,
-        string Tfm,
-        string Type,
-        string OutDir,
-        bool Verbose,
-        bool Quiet,
-        bool DryRun,
-        string Format,
-        string Emit,
-        int MaxChars,
-        string Progress,
-        string? SourceSymbol);
-
-    private sealed record CliOutcome(
-        int ExitCode,
-        string? Error,
-        string PackageId,
-        string Version,
-        string SelectedTfm,
-        string? AssemblyPath,
-        string? OutputPath,
-        string? IndexPath,
-        string? ManifestPath,
-        string? InlineSource,
-        int? MaxChars,
-        int? OriginalChars,
-        bool Truncated);
-
-    private sealed record CliRunResult(
-        string Command,
-        string PackageId,
-        string Version,
-        string SelectedTfm,
-        string? InputType,
-        string? InputSymbol,
-        string ResolvedType,
-        string? AssemblyPath,
-        string? OutputPath,
-        string? IndexPath,
-        string? ManifestPath,
-        string Emit,
-        string? InlineSource,
-        int? MaxChars,
-        int? OriginalChars,
-        bool Truncated,
-        bool DryRun,
-        int ExitCode,
-        string? Error);
-
-    private sealed record InlineSourceResult(
-        string? Content,
-        int? MaxChars,
-        int? OriginalChars,
-        bool Truncated);
-
-    private sealed class Spinner : IDisposable
-    {
-        private const string ClearToEndOfLine = "\x1b[K";
-        private static readonly char[] Frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-
-        private readonly TextWriter _writer;
-        private readonly string _label;
-        private readonly Stopwatch _stopwatch = new();
-        private readonly Lock _sync = new();
-        private CancellationTokenSource? _cts;
-        private Task? _task;
-        private bool _isRunning;
-        private bool _isStopped;
-
-        public Spinner(string label, TextWriter writer)
-        {
-            _label = label;
-            _writer = writer;
-        }
-
-        public void Start()
-        {
-            lock (_sync)
-            {
-                if (_isRunning)
-                {
-                    return;
-                }
-
-                _cts = new CancellationTokenSource();
-                _isRunning = true;
-                _isStopped = false;
-                _stopwatch.Restart();
-                _task = Task.Run(() => RenderLoopAsync(_cts.Token));
-            }
-        }
-
-        public void Stop(string status)
-        {
-            StopInternal(status, writeStatus: true);
-        }
-
-        public void Dispose()
-        {
-            try
-            {
-                StopInternal(string.Empty, writeStatus: false);
-            }
-            catch
-            {
-                // Dispose should be best-effort and never throw.
-            }
-            finally
-            {
-                lock (_sync)
-                {
-                    _cts?.Dispose();
-                    _cts = null;
-                    _task = null;
-                }
-            }
-        }
-
-        private void StopInternal(string status, bool writeStatus)
-        {
-            CancellationTokenSource? cts;
-            Task? task;
-
-            lock (_sync)
-            {
-                if (_isStopped)
-                {
-                    return;
-                }
-
-                _isStopped = true;
-                _isRunning = false;
-                cts = _cts;
-                task = _task;
-            }
-
-            cts?.Cancel();
-
-            try
-            {
-                task?.GetAwaiter().GetResult();
-            }
-            catch (Exception ex) when (writeStatus is false || ex is OperationCanceledException or TaskCanceledException)
-            {
-                // swallow in Dispose() path, and ignore cancellation-only completion
-            }
-
-            lock (_sync)
-            {
-                _stopwatch.Stop();
-                _writer.Write($"\r{ClearToEndOfLine}");
-
-                if (writeStatus)
-                {
-                    _writer.Write($"{status} ({_stopwatch.Elapsed.TotalSeconds:F1}s)\n");
-                }
-
-                _writer.Flush();
-            }
-        }
-
-        private async Task RenderLoopAsync(CancellationToken token)
-        {
-            var index = 0;
-
-            while (!token.IsCancellationRequested)
-            {
-                var frame = Frames[index];
-
-                lock (_sync)
-                {
-                    _writer.Write($"\r{frame} {_label}...{ClearToEndOfLine}");
-                    _writer.Flush();
-                }
-
-                index = (index + 1) % Frames.Length;
-
-                try
-                {
-                    await Task.Delay(80, token).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                    break;
-                }
-            }
-        }
-    }
 }
