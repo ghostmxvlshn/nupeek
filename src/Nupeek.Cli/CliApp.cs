@@ -1,6 +1,5 @@
 using Nupeek.Core;
 using System.CommandLine;
-using System.CommandLine.IO;
 using System.Text;
 
 namespace Nupeek.Cli;
@@ -25,7 +24,7 @@ public static class CliApp
 
         try
         {
-            var invokeResult = await parseResult.InvokeAsync(console).ConfigureAwait(false);
+            var invokeResult = await root.InvokeAsync(args, console).ConfigureAwait(false);
             return invokeResult;
         }
         catch (ArgumentException ex)
