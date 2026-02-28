@@ -1,3 +1,5 @@
+using Nupeek.Cli;
+
 namespace Nupeek.Cli.Tests;
 
 public class CliAppTests
@@ -5,14 +7,14 @@ public class CliAppTests
     [Fact]
     public async Task RunAsync_UnknownCommand_ReturnsInvalidArguments()
     {
-        var code = await CliApp.RunAsync(["wat"]).ConfigureAwait(false);
+        var code = await CliApp.RunAsync(["wat"]);
         Assert.Equal(ExitCodes.InvalidArguments, code);
     }
 
     [Fact]
     public async Task RunAsync_Help_ReturnsSuccess()
     {
-        var code = await CliApp.RunAsync(["--help"]).ConfigureAwait(false);
+        var code = await CliApp.RunAsync(["--help"]);
         Assert.Equal(ExitCodes.Success, code);
     }
 
