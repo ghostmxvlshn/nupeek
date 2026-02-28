@@ -191,7 +191,7 @@ public static class CliApp
 
     private static async Task<CliOutcome> ExecuteWithSpinnerAsync(Func<Task<CliOutcome>> action)
     {
-        using var spinner = new Spinner("Executing Nupeek", Console.Error);
+        var spinner = new Spinner("Executing Nupeek", Console.Error);
         spinner.Start();
 
         CliOutcome? outcome = null;
@@ -204,7 +204,15 @@ public static class CliApp
         finally
         {
             var status = outcome is not null && outcome.ExitCode == ExitCodes.Success ? "Done" : "Failed";
-            spinner.Stop(status);
+
+            try
+            {
+                await spinner.StopAsync(status).ConfigureAwait(false);
+            }
+            finally
+            {
+                await spinner.DisposeAsync().ConfigureAwait(false);
+            }
         }
     }
 

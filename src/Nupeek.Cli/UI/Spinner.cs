@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 namespace Nupeek.Cli;
 
-internal sealed class Spinner : IDisposable
+internal sealed class Spinner : IDisposable, IAsyncDisposable
 {
     private const string ClearToEndOfLine = "\x1b[K";
     private static readonly char[] Frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
@@ -40,15 +40,16 @@ internal sealed class Spinner : IDisposable
     }
 
     public void Stop(string status)
-    {
-        StopInternal(status, writeStatus: true);
-    }
+        => StopAsync(status).GetAwaiter().GetResult();
+
+    public ValueTask StopAsync(string status)
+        => StopInternalAsync(status, writeStatus: true);
 
     public void Dispose()
     {
         try
         {
-            StopInternal(string.Empty, writeStatus: false);
+            StopInternalAsync(string.Empty, writeStatus: false).GetAwaiter().GetResult();
         }
         catch
         {
@@ -56,16 +57,27 @@ internal sealed class Spinner : IDisposable
         }
         finally
         {
-            lock (_sync)
-            {
-                _cts?.Dispose();
-                _cts = null;
-                _task = null;
-            }
+            DisposeResources();
         }
     }
 
-    private void StopInternal(string status, bool writeStatus)
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await StopInternalAsync(string.Empty, writeStatus: false).ConfigureAwait(false);
+        }
+        catch
+        {
+            // DisposeAsync should be best-effort and never throw.
+        }
+        finally
+        {
+            DisposeResources();
+        }
+    }
+
+    private async ValueTask StopInternalAsync(string status, bool writeStatus)
     {
         CancellationTokenSource? cts;
         Task? task;
@@ -87,11 +99,14 @@ internal sealed class Spinner : IDisposable
 
         try
         {
-            task?.GetAwaiter().GetResult();
+            if (task is not null)
+            {
+                await task.ConfigureAwait(false);
+            }
         }
         catch (Exception ex) when (writeStatus is false || ex is OperationCanceledException or TaskCanceledException)
         {
-            // swallow in Dispose() path, and ignore cancellation-only completion
+            // swallow in dispose path, and ignore cancellation-only completion
         }
 
         lock (_sync)
@@ -105,6 +120,16 @@ internal sealed class Spinner : IDisposable
             }
 
             _writer.Flush();
+        }
+    }
+
+    private void DisposeResources()
+    {
+        lock (_sync)
+        {
+            _cts?.Dispose();
+            _cts = null;
+            _task = null;
         }
     }
 
