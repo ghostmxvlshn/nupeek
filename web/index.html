@@ -7,101 +7,274 @@
   <meta name="description" content="Nupeek gives AI coding agents real NuGet implementation context by decompiling only the types you use." />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
+  <div class="page-glow page-glow-left"></div>
+  <div class="page-glow page-glow-right"></div>
   <div class="noise"></div>
-  <header class="nav container">
-    <div class="logo">nupeek</div>
-    <nav class="links">
-      <a href="#problem">Problem</a>
-      <a href="#solution">Solution</a>
-      <a href="#install">Install</a>
-      <a href="#usage">Usage</a>
-    </nav>
-    <a class="gh-link" href="https://github.com/ghostmxvlshn/nupeek" target="_blank" rel="noreferrer" aria-label="Open GitHub repository">GitHub ↗</a>
+
+  <header class="nav-shell">
+    <div class="nav container">
+      <a class="logo" href="#" aria-label="Nupeek home">nupeek</a>
+      <nav class="links" aria-label="Primary">
+        <a href="#problem">Problem</a>
+        <a href="#solution">Solution</a>
+        <a href="#install">Install</a>
+        <a href="#usage">Usage</a>
+        <a href="#github">GitHub</a>
+      </nav>
+      <a class="gh-link" href="https://github.com/ghostmxvlshn/nupeek" target="_blank" rel="noreferrer" aria-label="Open GitHub repository">GitHub ↗</a>
+    </div>
   </header>
 
-  <main class="container">
-    <section class="hero">
-      <div>
-        <p class="pill">Built for Copilot CLI, Claude Code, Codex and other terminal agents</p>
-        <h1>Stop guessing package behavior.<br/>Let your agent read the real implementation.</h1>
-        <p class="lead">Nupeek decompiles only the NuGet package type you need into <code>deps-src/</code>, so debugging and architecture decisions are based on code, not assumptions.</p>
-        <div class="cta-row">
-          <a class="btn" href="#install">Install Nupeek</a>
-          <a class="btn ghost" href="#usage">See terminal output</a>
+  <main>
+    <section class="hero-wrap">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow">Agent-native NuGet inspection for real implementation context</p>
+          <h1>Stop guessing package behavior. Let your agent inspect the code behind the API.</h1>
+          <p class="lead">Nupeek decompiles only the NuGet package type you need into <code>deps-src/</code>, so debugging, upgrades, and architecture decisions are grounded in actual implementation details instead of assumptions.</p>
+          <div class="cta-row">
+            <a class="btn" href="#install">Install Nupeek</a>
+            <a class="btn ghost" href="#usage">View usage screenshots</a>
+          </div>
+          <div class="proof-inline">
+            <span>Built for Copilot CLI</span>
+            <span>Claude Code</span>
+            <span>Codex</span>
+            <span>Local developer workflows</span>
+          </div>
         </div>
-      </div>
-      <div class="hero-art-wrap">
-        <img src="./assets/hero-art.svg" alt="Nupeek visual showing package decompilation flow" class="hero-art" />
+
+        <div class="hero-stage">
+          <article class="hero-panel primary-panel">
+            <div class="panel-badge">Why teams use Nupeek</div>
+            <div class="signal-line">
+              <span class="signal-dot"></span>
+              <span>Resolve package internals without leaving your terminal</span>
+            </div>
+            <ul class="hero-points">
+              <li>Decompile the exact type your agent is reasoning about</li>
+              <li>Target the best runtime assembly and framework automatically</li>
+              <li>Write readable source plus lookup manifests into local files</li>
+            </ul>
+            <div class="hero-command">
+              <div class="terminal-top">
+                <span></span><span></span><span></span>
+              </div>
+              <pre><code>nupeek type --package Azure.Messaging.ServiceBus \
+  --type Azure.Messaging.ServiceBus.ServiceBusSender \
+  --out deps-src --dry-run false</code></pre>
+            </div>
+          </article>
+
+          <article class="hero-panel secondary-panel">
+            <div class="panel-badge">What your agent gets</div>
+            <div class="mini-grid">
+              <div>
+                <strong>Readable C#</strong>
+                <p>Local decompiled files for the package type you asked for.</p>
+              </div>
+              <div>
+                <strong>Fast lookup</strong>
+                <p><code>index.json</code> and <code>manifest.json</code> for repeatable context.</p>
+              </div>
+              <div>
+                <strong>Safer debugging</strong>
+                <p>See retry behavior, guards, and side effects before changing code.</p>
+              </div>
+              <div>
+                <strong>Version clarity</strong>
+                <p>Inspect actual implementation paths instead of release-note summaries.</p>
+              </div>
+            </div>
+          </article>
+        </div>
       </div>
     </section>
 
-    <section id="problem" class="section split">
-      <article class="panel">
-        <h2>The problem</h2>
-        <p>AI coding agents can call methods from NuGet packages, but they often can’t inspect package internals quickly. That leads to generic guidance and fragile fixes.</p>
-        <ul>
-          <li>“Why is <code>ServiceBusSender</code> failing during retries?”</li>
-          <li>“Is this Polly policy safe for this path?”</li>
-          <li>“What changed between package versions?”</li>
-        </ul>
-      </article>
-      <article id="solution" class="panel">
-        <h2>The solution</h2>
-        <p>Nupeek pulls out only the package source your agent needs:</p>
-        <ol>
-          <li>Find package + version</li>
-          <li>Pick best runtime target (<strong>TFM</strong> = target framework, e.g. <code>net8.0</code>)</li>
-          <li>Locate your type in the correct assembly</li>
-          <li>Generate readable C# + quick lookup files</li>
-        </ol>
-        <p>You get deterministic local files your agent can inspect immediately.</p>
-      </article>
+    <section class="proof-strip">
+      <div class="container proof-grid">
+        <div class="proof-item">
+          <span class="proof-label">Positioning</span>
+          <strong>Open-source CLI for AI coding agents working against NuGet dependencies</strong>
+        </div>
+        <div class="proof-item">
+          <span class="proof-label">Output</span>
+          <strong>Deterministic local files in <code>deps-src/</code>, not vague package summaries</strong>
+        </div>
+        <div class="proof-item">
+          <span class="proof-label">Use cases</span>
+          <strong>Debugging, package upgrades, refactors, architecture reviews</strong>
+        </div>
+      </div>
+    </section>
+
+    <section id="problem" class="section">
+      <div class="container section-stack">
+        <div class="section-heading">
+          <p class="eyebrow">From package blind spots to behavior-accurate decisions</p>
+          <h2>Nupeek is designed for the gap between package APIs and package reality.</h2>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <span class="card-kicker">The problem</span>
+            <h3>Agents can call NuGet APIs long before they can inspect the implementation.</h3>
+            <p>That often means generic advice, fragile fixes, and incomplete debugging when the real behavior lives inside a compiled dependency.</p>
+            <ul class="bullet-list">
+              <li>Why is <code>ServiceBusSender</code> failing during retries?</li>
+              <li>Is this Polly policy safe for this path?</li>
+              <li>What changed between package versions?</li>
+            </ul>
+          </article>
+          <article id="solution" class="feature-card feature-card-accent">
+            <span class="card-kicker">The solution</span>
+            <h3>Pull only the source your agent needs and make it inspectable immediately.</h3>
+            <p>Nupeek keeps the workflow narrow, local, and deterministic so the model can reason from real code instead of inferred package behavior.</p>
+            <ul class="check-list">
+              <li>Find package and version</li>
+              <li>Select the best runtime target and TFM</li>
+              <li>Locate the requested type in the correct assembly</li>
+              <li>Generate readable C# plus quick lookup files</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="metrics-band">
+          <article>
+            <span class="metric-value">Specific types</span>
+            <p>Decompile the exact class your agent is reasoning about, not the entire package.</p>
+          </article>
+          <article>
+            <span class="metric-value">Local-first</span>
+            <p>Write outputs to your workspace so debugging context survives across prompts and sessions.</p>
+          </article>
+          <article>
+            <span class="metric-value">Agent-ready</span>
+            <p>Built for terminal-native workflows where speed and implementation accuracy matter.</p>
+          </article>
+        </div>
+      </div>
     </section>
 
     <section id="install" class="section">
-      <h2>Install</h2>
-      <div class="cards">
-        <article class="card">
-          <h3>.NET global tool</h3>
-          <pre><code>dotnet tool install -g Nupeek
+      <div class="container section-stack">
+        <div class="section-heading split-heading">
+          <div>
+            <p class="eyebrow">Install and run</p>
+            <h2>Get Nupeek into the workflow fast.</h2>
+          </div>
+          <p class="section-copy">Use the .NET global tool or the one-line installer, then point Nupeek at the package type your agent needs to understand.</p>
+        </div>
+        <div class="install-grid">
+          <article class="install-card">
+            <span class="card-kicker">.NET global tool</span>
+            <h3>Standard setup for local developer machines.</h3>
+            <pre><code>dotnet tool install -g Nupeek
 nupeek --help</code></pre>
-        </article>
-        <article class="card">
-          <h3>One-line installer</h3>
-          <pre><code>curl -fsSL \
+          </article>
+          <article class="install-card">
+            <span class="card-kicker">One-line installer</span>
+            <h3>Quick bootstrap for terminals and ephemeral environments.</h3>
+            <pre><code>curl -fsSL \
   https://raw.githubusercontent.com/ghostmxvlshn/nupeek/main/install.sh | bash</code></pre>
-        </article>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container section-stack">
+        <div class="section-heading split-heading">
+          <div>
+            <p class="eyebrow">How it works</p>
+            <h2>A narrow pipeline built for package-level clarity.</h2>
+          </div>
+          <p class="section-copy">Nupeek avoids broad decompilation passes and focuses on the exact code path your agent is trying to reason about.</p>
+        </div>
+        <div class="timeline">
+          <article class="timeline-step">
+            <span class="timeline-index">01</span>
+            <h3>Resolve the package</h3>
+            <p>Read the package identity and version the project is actually using.</p>
+          </article>
+          <article class="timeline-step">
+            <span class="timeline-index">02</span>
+            <h3>Choose the runtime target</h3>
+            <p>Pick the most relevant target framework and assembly for the type lookup.</p>
+          </article>
+          <article class="timeline-step">
+            <span class="timeline-index">03</span>
+            <h3>Extract the requested type</h3>
+            <p>Find the symbol and generate readable decompiled C# where the agent can inspect it.</p>
+          </article>
+          <article class="timeline-step">
+            <span class="timeline-index">04</span>
+            <h3>Write stable local artifacts</h3>
+            <p>Save source and manifests into <code>deps-src/</code> for repeatable follow-up analysis.</p>
+          </article>
+        </div>
       </div>
     </section>
 
     <section id="usage" class="section">
-      <h2>Terminal usage (real run outputs)</h2>
-      <p class="muted">Captured from local Nupeek executions.</p>
-      <div class="shots">
-        <figure class="shot">
-          <img src="./assets/terminal-type.png" alt="Nupeek type command output screenshot" />
-          <figcaption><code>nupeek type ...</code></figcaption>
-        </figure>
-        <figure class="shot">
-          <img src="./assets/terminal-find.png" alt="Nupeek find command output screenshot" />
-          <figcaption><code>nupeek find ...</code></figcaption>
-        </figure>
+      <div class="container section-stack">
+        <div class="section-heading split-heading">
+          <div>
+            <p class="eyebrow">Usage screenshots</p>
+            <h2>Terminal output from real Nupeek runs.</h2>
+          </div>
+          <p class="section-copy">These captures show the CLI flow agents and developers see when locating types and exploring package contents.</p>
+        </div>
+        <div class="shots">
+          <figure class="shot">
+            <img src="./assets/terminal-type.png" alt="Nupeek type command output screenshot" />
+            <figcaption><code>nupeek type ...</code></figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="./assets/terminal-find.png" alt="Nupeek find command output screenshot" />
+            <figcaption><code>nupeek find ...</code></figcaption>
+          </figure>
+        </div>
       </div>
     </section>
 
-    <section class="section final">
-      <h2>Open source. Local-first. Agent-native.</h2>
-      <p>Nupeek is MIT licensed and designed for real developer workflows.</p>
-      <a class="btn" href="https://github.com/ghostmxvlshn/nupeek" target="_blank" rel="noreferrer">Star on GitHub</a>
+    <section id="github" class="section">
+      <div class="container">
+        <div class="cta-panel">
+          <div>
+            <p class="eyebrow">Open source. Local-first. Agent-native.</p>
+            <h2>Use Nupeek when package internals matter to the decision in front of you.</h2>
+            <p>Nupeek is MIT licensed and built for real developer workflows where AI agents need direct implementation context instead of abstractions.</p>
+          </div>
+          <div class="cta-actions">
+            <a class="btn" href="https://github.com/ghostmxvlshn/nupeek" target="_blank" rel="noreferrer">Star on GitHub</a>
+            <a class="btn ghost" href="#install">Install from CLI</a>
+          </div>
+        </div>
+      </div>
     </section>
   </main>
 
-  <footer class="container footer">
-    <small>Nupeek © 2026</small>
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div>
+        <a class="logo" href="#" aria-label="Nupeek home">nupeek</a>
+        <p class="footer-copy">See NuGet package internals fast, with output shaped for AI coding agents and human developers.</p>
+      </div>
+      <div class="footer-links">
+        <a href="#problem">Problem</a>
+        <a href="#install">Install</a>
+        <a href="#usage">Usage</a>
+        <a href="https://github.com/ghostmxvlshn/nupeek" target="_blank" rel="noreferrer">GitHub ↗</a>
+      </div>
+    </div>
   </footer>
 </body>
 </html>
