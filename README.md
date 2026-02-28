@@ -43,5 +43,6 @@ See: **`docs/INSTALL.md`**
 
 - Deep project/reference doc: **`docs/README_DEEP.md`**
 - Release process: `docs/RELEASE.md`
+- Hosting (GitHub Pages + DNS): `docs/HOSTING.md`
 - CLI UX standards: `docs/CLI_BEST_PRACTICES.md`
 - Landing page: `web/index.html`
