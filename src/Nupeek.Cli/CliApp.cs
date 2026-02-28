@@ -105,6 +105,8 @@ public static class CliApp
         var typeOption = new Option<string>("--type", "Fully-qualified type name (e.g. Namespace.Type)") { IsRequired = true };
         var outOption = new Option<string>("--out", "Output directory (e.g. deps-src)") { IsRequired = true };
         var formatOption = new Option<string>("--format", () => "text", "Output format: text (default) or json.");
+        var emitOption = new Option<string>("--emit", () => "files", "Emit mode: files (default) or agent.");
+        var maxCharsOption = new Option<int>("--max-chars", () => 12000, "Max inline source chars for --emit agent.");
 
         var command = new Command("type", "Decompile a single type from a NuGet package.");
         command.AddOption(packageOption);
@@ -113,6 +115,8 @@ public static class CliApp
         command.AddOption(typeOption);
         command.AddOption(outOption);
         command.AddOption(formatOption);
+        command.AddOption(emitOption);
+        command.AddOption(maxCharsOption);
 
         command.SetHandler((InvocationContext context) =>
         {
@@ -128,6 +132,8 @@ public static class CliApp
                 Quiet: parse.GetValueForOption(quietOption),
                 DryRun: parse.GetValueForOption(dryRunOption),
                 Format: parse.GetValueForOption(formatOption) ?? "text",
+                Emit: parse.GetValueForOption(emitOption) ?? "files",
+                MaxChars: parse.GetValueForOption(maxCharsOption),
                 Progress: parse.GetValueForOption(progressOption) ?? "auto",
                 SourceSymbol: null));
         });
@@ -145,6 +151,8 @@ public static class CliApp
         var symbolOption = new Option<string>("--symbol", "Symbol name, e.g. Namespace.Type.Method") { IsRequired = true };
         var outOption = new Option<string>("--out", "Output directory (e.g. deps-src)") { IsRequired = true };
         var formatOption = new Option<string>("--format", () => "text", "Output format: text (default) or json.");
+        var emitOption = new Option<string>("--emit", () => "files", "Emit mode: files (default) or agent.");
+        var maxCharsOption = new Option<int>("--max-chars", () => 12000, "Max inline source chars for --emit agent.");
 
         var command = new Command("find", "Resolve symbol to type and decompile that type.");
         command.AddOption(packageOption);
@@ -153,6 +161,8 @@ public static class CliApp
         command.AddOption(symbolOption);
         command.AddOption(outOption);
         command.AddOption(formatOption);
+        command.AddOption(emitOption);
+        command.AddOption(maxCharsOption);
 
         command.SetHandler((InvocationContext context) =>
         {
@@ -169,6 +179,8 @@ public static class CliApp
                 Quiet: parse.GetValueForOption(quietOption),
                 DryRun: parse.GetValueForOption(dryRunOption),
                 Format: parse.GetValueForOption(formatOption) ?? "text",
+                Emit: parse.GetValueForOption(emitOption) ?? "files",
+                MaxChars: parse.GetValueForOption(maxCharsOption),
                 Progress: parse.GetValueForOption(progressOption) ?? "auto",
                 SourceSymbol: symbol));
         });
@@ -179,15 +191,17 @@ public static class CliApp
     private static int RunPlan(PlanRequest request)
     {
         var format = NormalizeFormat(request.Format);
+        var emit = NormalizeEmit(request.Emit);
         var progress = NormalizeProgress(request.Progress);
+        var maxChars = NormalizeMaxChars(request.MaxChars);
 
         if (request.Verbose)
         {
             Console.Error.WriteLine("[nupeek] preparing execution plan...");
         }
 
-        var outcome = ExecutePlan(request, format, progress);
-        EmitOutcome(outcome, request, format);
+        var outcome = ExecutePlan(request, format, emit, progress, maxChars);
+        EmitOutcome(outcome, request, format, emit);
 
         if (request.Verbose)
         {
@@ -208,10 +222,14 @@ public static class CliApp
             null,
             null,
             null,
-            null);
+            null,
+            null,
+            string.Equals(request.Emit, "agent", StringComparison.OrdinalIgnoreCase) ? request.MaxChars : null,
+            null,
+            false);
     }
 
-    private static CliOutcome ExecutePlan(PlanRequest request, string format, string progress)
+    private static CliOutcome ExecutePlan(PlanRequest request, string format, string emit, string progress, int maxChars)
     {
         if (request.DryRun)
         {
@@ -220,10 +238,10 @@ public static class CliApp
 
         if (!ShouldShowSpinner(request, format, progress))
         {
-            return HandleRealRun(request);
+            return HandleRealRun(request, emit, maxChars);
         }
 
-        return ExecuteWithSpinner(request, () => HandleRealRun(request));
+        return ExecuteWithSpinner(request, () => HandleRealRun(request, emit, maxChars));
     }
 
     private static bool ShouldShowSpinner(PlanRequest request, string format, string progress)
@@ -256,7 +274,7 @@ public static class CliApp
         return outcome;
     }
 
-    private static CliOutcome HandleRealRun(PlanRequest request)
+    private static CliOutcome HandleRealRun(PlanRequest request, string emit, int maxChars)
     {
         try
         {
@@ -268,6 +286,8 @@ public static class CliApp
                 request.Type,
                 request.OutDir)).GetAwaiter().GetResult();
 
+            var inlineSource = ReadInlineSource(result.OutputPath, emit, maxChars);
+
             return new CliOutcome(
                 ExitCodes.Success,
                 null,
@@ -277,23 +297,27 @@ public static class CliApp
                 result.AssemblyPath,
                 result.OutputPath,
                 result.IndexPath,
-                result.ManifestPath);
+                result.ManifestPath,
+                inlineSource.Content,
+                inlineSource.MaxChars,
+                inlineSource.OriginalChars,
+                inlineSource.Truncated);
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
         {
-            return new CliOutcome(ExitCodes.TypeOrSymbolNotFound, ex.Message, request.Package, request.Version, request.Tfm, null, null, null, null);
+            return new CliOutcome(ExitCodes.TypeOrSymbolNotFound, ex.Message, request.Package, request.Version, request.Tfm, null, null, null, null, null, null, null, false);
         }
         catch (InvalidOperationException ex)
         {
-            return new CliOutcome(ExitCodes.PackageResolutionFailure, ex.Message, request.Package, request.Version, request.Tfm, null, null, null, null);
+            return new CliOutcome(ExitCodes.PackageResolutionFailure, ex.Message, request.Package, request.Version, request.Tfm, null, null, null, null, null, null, null, false);
         }
         catch (Exception ex)
         {
-            return new CliOutcome(ExitCodes.DecompilationFailure, $"Decompilation failed: {ex.Message}", request.Package, request.Version, request.Tfm, null, null, null, null);
+            return new CliOutcome(ExitCodes.DecompilationFailure, $"Decompilation failed: {ex.Message}", request.Package, request.Version, request.Tfm, null, null, null, null, null, null, null, false);
         }
     }
 
-    private static void EmitOutcome(CliOutcome outcome, PlanRequest request, string format)
+    private static void EmitOutcome(CliOutcome outcome, PlanRequest request, string format, string emit)
     {
         if (string.Equals(format, "json", StringComparison.Ordinal))
         {
@@ -309,6 +333,11 @@ public static class CliApp
                 outcome.OutputPath,
                 outcome.IndexPath,
                 outcome.ManifestPath,
+                emit,
+                outcome.InlineSource,
+                outcome.MaxChars,
+                outcome.OriginalChars,
+                outcome.Truncated,
                 request.DryRun,
                 outcome.ExitCode,
                 outcome.Error));
@@ -333,6 +362,17 @@ public static class CliApp
             Console.WriteLine($"outputPath: {outcome.OutputPath}");
             Console.WriteLine($"indexPath: {outcome.IndexPath}");
             Console.WriteLine($"manifestPath: {outcome.ManifestPath}");
+
+            if (string.Equals(emit, "agent", StringComparison.Ordinal) && !string.IsNullOrEmpty(outcome.InlineSource))
+            {
+                Console.WriteLine("--- inlineSource:start ---");
+                Console.WriteLine(outcome.InlineSource);
+                Console.WriteLine("--- inlineSource:end ---");
+                if (outcome.Truncated)
+                {
+                    Console.WriteLine($"inlineSourceTruncated: true ({outcome.MaxChars}/{outcome.OriginalChars} chars)");
+                }
+            }
         }
     }
 
@@ -357,6 +397,46 @@ public static class CliApp
         }
 
         throw new ArgumentException("Invalid --progress value. Allowed: auto, always, never.", nameof(progress));
+    }
+
+    private static string NormalizeEmit(string emit)
+    {
+        if (string.Equals(emit, "files", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(emit, "agent", StringComparison.OrdinalIgnoreCase))
+        {
+            return emit.ToLowerInvariant();
+        }
+
+        throw new ArgumentException("Invalid --emit value. Allowed: files, agent.", nameof(emit));
+    }
+
+    private static int NormalizeMaxChars(int maxChars)
+    {
+        if (maxChars < 200)
+        {
+            throw new ArgumentException("Invalid --max-chars value. Minimum is 200.", nameof(maxChars));
+        }
+
+        return maxChars;
+    }
+
+    private static InlineSourceResult ReadInlineSource(string outputPath, string emit, int maxChars)
+    {
+        if (!string.Equals(emit, "agent", StringComparison.Ordinal) || !File.Exists(outputPath))
+        {
+            return new InlineSourceResult(null, null, null, false);
+        }
+
+        var source = File.ReadAllText(outputPath);
+        var originalChars = source.Length;
+        var truncated = source.Length > maxChars;
+
+        if (truncated)
+        {
+            source = source[..maxChars];
+        }
+
+        return new InlineSourceResult(source, maxChars, originalChars, truncated);
     }
 
     private static void WriteJson(CliRunResult payload)
@@ -407,6 +487,8 @@ public static class CliApp
         bool Quiet,
         bool DryRun,
         string Format,
+        string Emit,
+        int MaxChars,
         string Progress,
         string? SourceSymbol);
 
@@ -419,7 +501,11 @@ public static class CliApp
         string? AssemblyPath,
         string? OutputPath,
         string? IndexPath,
-        string? ManifestPath);
+        string? ManifestPath,
+        string? InlineSource,
+        int? MaxChars,
+        int? OriginalChars,
+        bool Truncated);
 
     private sealed record CliRunResult(
         string Command,
@@ -433,9 +519,20 @@ public static class CliApp
         string? OutputPath,
         string? IndexPath,
         string? ManifestPath,
+        string Emit,
+        string? InlineSource,
+        int? MaxChars,
+        int? OriginalChars,
+        bool Truncated,
         bool DryRun,
         int ExitCode,
         string? Error);
+
+    private sealed record InlineSourceResult(
+        string? Content,
+        int? MaxChars,
+        int? OriginalChars,
+        bool Truncated);
 
     private sealed class Spinner : IDisposable
     {

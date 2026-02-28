@@ -64,6 +64,8 @@ public class CliAppTests
             "--type", "Polly.Policy",
             "--out", "deps-src",
             "--format", "json",
+            "--emit", "agent",
+            "--max-chars", "500",
         };
 
         var originalOut = Console.Out;
@@ -81,6 +83,8 @@ public class CliAppTests
             Assert.Equal("type", payload.RootElement.GetProperty("Command").GetString());
             Assert.Equal("Polly", payload.RootElement.GetProperty("PackageId").GetString());
             Assert.Equal("Polly.Policy", payload.RootElement.GetProperty("InputType").GetString());
+            Assert.Equal("agent", payload.RootElement.GetProperty("Emit").GetString());
+            Assert.Equal(500, payload.RootElement.GetProperty("MaxChars").GetInt32());
             Assert.Equal(0, payload.RootElement.GetProperty("ExitCode").GetInt32());
             Assert.True(payload.RootElement.GetProperty("DryRun").GetBoolean());
         }
@@ -138,6 +142,26 @@ public class CliAppTests
             "--type", "Polly.Policy",
             "--out", "deps-src",
             "--progress", "fast",
+        };
+
+        // Act
+        var code = await CliApp.RunAsync(args);
+
+        // Assert
+        Assert.Equal(ExitCodes.GenericError, code);
+    }
+
+    [Fact]
+    public async Task RunAsync_InvalidEmitValue_ReturnsGenericError()
+    {
+        // Arrange
+        var args = new[]
+        {
+            "type",
+            "--package", "Polly",
+            "--type", "Polly.Policy",
+            "--out", "deps-src",
+            "--emit", "inline",
         };
 
         // Act
