@@ -12,6 +12,9 @@ namespace Nupeek.Core;
 /// </summary>
 public sealed class NuGetPackageAcquirer
 {
+    private const int MaxZipEntries = 20_000;
+    private const long MaxExtractedBytes = 1L * 1024 * 1024 * 1024; // 1 GiB
+
     /// <summary>
     /// Acquires package content in local cache and returns resolved paths/metadata.
     /// </summary>
@@ -20,13 +23,20 @@ public sealed class NuGetPackageAcquirer
         ArgumentException.ThrowIfNullOrWhiteSpace(request.PackageId);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.CacheRoot);
 
+        var packageId = request.PackageId.Trim();
+        ValidatePackageId(packageId);
+
+        if (!string.IsNullOrWhiteSpace(request.Version))
+        {
+            ValidateVersion(request.Version.Trim());
+        }
+
         var logger = NullLogger.Instance;
 
         // Discover available package sources once for this operation.
         var repositories = GetRepositories();
 
-        // Normalize id and resolve version (explicit or latest stable).
-        var packageId = request.PackageId.Trim();
+        // Resolve version (explicit or latest stable).
         var version = await ResolveVersionAsync(repositories, packageId, request.Version, logger, cancellationToken).ConfigureAwait(false);
 
         // Compute deterministic cache paths for this package/version.
@@ -51,7 +61,7 @@ public sealed class NuGetPackageAcquirer
                 Directory.Delete(extractedPath, recursive: true);
             }
 
-            ZipFile.ExtractToDirectory(nupkgPath, extractedPath);
+            ExtractPackageSafely(nupkgPath, extractedPath);
         }
 
         return new NuGetPackageResult(packageId, version, packageDir, nupkgPath, extractedPath);
@@ -91,7 +101,9 @@ public sealed class NuGetPackageAcquirer
     {
         if (!string.IsNullOrWhiteSpace(requestedVersion))
         {
-            return requestedVersion.Trim();
+            var normalized = requestedVersion.Trim();
+            ValidateVersion(normalized);
+            return normalized;
         }
 
         var versions = new List<NuGetVersion>();
@@ -158,5 +170,80 @@ public sealed class NuGetPackageAcquirer
         }
 
         throw new InvalidOperationException($"Unable to download package '{packageId}' version '{version}'.");
+    }
+
+    /// <summary>
+    /// Validates package id format to avoid invalid paths and NuGet parsing errors.
+    /// </summary>
+    private static void ValidatePackageId(string packageId)
+    {
+        if (string.IsNullOrWhiteSpace(packageId)
+            || packageId.Contains("..", StringComparison.Ordinal)
+            || packageId.IndexOfAny(['/', '\\']) >= 0
+            || packageId.Any(static c => !(char.IsLetterOrDigit(c) || c is '.' or '-' or '_')))
+        {
+            throw new ArgumentException($"Invalid package id '{packageId}'.", nameof(packageId));
+        }
+    }
+
+    /// <summary>
+    /// Validates version string using NuGet semantic version parser.
+    /// </summary>
+    private static void ValidateVersion(string version)
+    {
+        if (!NuGetVersion.TryParse(version, out _))
+        {
+            throw new ArgumentException($"Invalid package version '{version}'.", nameof(version));
+        }
+    }
+
+    /// <summary>
+    /// Extracts package archive with zip-slip and size guardrails.
+    /// </summary>
+    private static void ExtractPackageSafely(string nupkgPath, string extractedPath)
+    {
+        Directory.CreateDirectory(extractedPath);
+
+        var destinationRoot = Path.GetFullPath(extractedPath)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            + Path.DirectorySeparatorChar;
+
+        using var archive = ZipFile.OpenRead(nupkgPath);
+
+        if (archive.Entries.Count > MaxZipEntries)
+        {
+            throw new InvalidOperationException($"Package archive has too many entries ({archive.Entries.Count}).");
+        }
+
+        long totalExtracted = 0;
+
+        foreach (var entry in archive.Entries)
+        {
+            var destinationPath = Path.GetFullPath(Path.Combine(extractedPath, entry.FullName));
+            if (!destinationPath.StartsWith(destinationRoot, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException($"Unsafe archive entry path '{entry.FullName}'.");
+            }
+
+            if (string.IsNullOrEmpty(entry.Name))
+            {
+                Directory.CreateDirectory(destinationPath);
+                continue;
+            }
+
+            totalExtracted += entry.Length;
+            if (totalExtracted > MaxExtractedBytes)
+            {
+                throw new InvalidOperationException($"Package extracted size exceeds safety limit ({MaxExtractedBytes} bytes).");
+            }
+
+            var directory = Path.GetDirectoryName(destinationPath);
+            if (!string.IsNullOrEmpty(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            entry.ExtractToFile(destinationPath, overwrite: true);
+        }
     }
 }
