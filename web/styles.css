@@ -216,11 +216,11 @@ p {
 }
 
 h1 {
-  max-width: 12ch;
+  max-width: 16ch;
   margin-bottom: 1rem;
-  font-size: clamp(3rem, 7vw, 5.8rem);
-  line-height: 0.96;
-  letter-spacing: -0.05em;
+  font-size: clamp(1.8rem, 4vw, 2.9rem);
+  line-height: 1.06;
+  letter-spacing: -0.03em;
 }
 
 .lead {
@@ -421,6 +421,55 @@ h1 {
   font-size: 0.88rem;
   line-height: 1.7;
   white-space: pre-wrap;
+}
+
+.code-block {
+  border: 1px solid rgba(40, 58, 99, 0.88);
+  border-radius: 18px;
+  background: rgba(9, 15, 29, 0.95);
+  overflow: hidden;
+}
+
+.code-block pre {
+  border: 0;
+  border-radius: 0;
+}
+
+.code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid rgba(40, 58, 99, 0.88);
+  background: rgba(17, 27, 51, 0.72);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.76rem;
+  color: #b7c9ea;
+}
+
+.copy-btn {
+  border: 1px solid rgba(102, 225, 255, 0.28);
+  background: rgba(7, 11, 22, 0.72);
+  color: #dff7ff;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  padding: 0.24rem 0.65rem;
+  cursor: pointer;
+}
+
+.copy-btn:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.install-note {
+  margin: 0.75rem 0 0.55rem;
+  font-size: 0.86rem;
+  color: #c0cfea;
+}
+
+.code-block.compact pre {
+  font-size: 0.82rem;
 }
 
 .mini-grid {
@@ -742,7 +791,7 @@ h2 {
 
   h1 {
     max-width: none;
-    font-size: clamp(2.7rem, 13vw, 4rem);
+    font-size: clamp(1.55rem, 8vw, 2.2rem);
   }
 
   h2 {
