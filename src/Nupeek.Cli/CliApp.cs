@@ -1,6 +1,7 @@
 using Nupeek.Core;
 using System.CommandLine;
 using System.CommandLine.Invocation;
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 
@@ -51,6 +52,11 @@ public static class CliApp
             Console.Error.WriteLine(ex.Message);
             return ExitCodes.InvalidArguments;
         }
+        catch (Exception ex) when (ex.InnerException is ArgumentException innerArg)
+        {
+            Console.Error.WriteLine(innerArg.Message);
+            return ExitCodes.InvalidArguments;
+        }
         catch (Exception ex)
         {
             Console.Error.WriteLine($"Unexpected error: {ex.Message}");
@@ -66,6 +72,7 @@ public static class CliApp
         var verboseOption = new Option<bool>("--verbose", "Show extra diagnostics on stderr.");
         var quietOption = new Option<bool>("--quiet", "Suppress non-essential stdout output.");
         var dryRunOption = new Option<bool>("--dry-run", () => true, "Show execution plan without decompiling.");
+        var progressOption = new Option<string>("--progress", () => "auto", "Progress indicator: auto (default), always, never.");
 
         var root = new RootCommand("Nupeek: targeted NuGet decompilation for coding agents.")
         {
@@ -75,19 +82,20 @@ public static class CliApp
         root.AddGlobalOption(verboseOption);
         root.AddGlobalOption(quietOption);
         root.AddGlobalOption(dryRunOption);
+        root.AddGlobalOption(progressOption);
 
         root.Description += Environment.NewLine + Environment.NewLine +
             "Examples:" + Environment.NewLine +
             "  nupeek type --package Azure.Messaging.ServiceBus --type Azure.Messaging.ServiceBus.ServiceBusSender --out deps-src" + Environment.NewLine +
             "  nupeek find --package Polly --symbol Polly.Policy.Handle --out deps-src";
 
-        root.AddCommand(BuildTypeCommand(verboseOption, quietOption, dryRunOption));
-        root.AddCommand(BuildFindCommand(verboseOption, quietOption, dryRunOption));
+        root.AddCommand(BuildTypeCommand(verboseOption, quietOption, dryRunOption, progressOption));
+        root.AddCommand(BuildFindCommand(verboseOption, quietOption, dryRunOption, progressOption));
 
         return root;
     }
 
-    private static Command BuildTypeCommand(Option<bool> verboseOption, Option<bool> quietOption, Option<bool> dryRunOption)
+    private static Command BuildTypeCommand(Option<bool> verboseOption, Option<bool> quietOption, Option<bool> dryRunOption, Option<string> progressOption)
     {
         var packageOption = new Option<string>("--package", "NuGet package id") { IsRequired = true };
         packageOption.AddAlias("-p");
@@ -120,13 +128,14 @@ public static class CliApp
                 Quiet: parse.GetValueForOption(quietOption),
                 DryRun: parse.GetValueForOption(dryRunOption),
                 Format: parse.GetValueForOption(formatOption) ?? "text",
+                Progress: parse.GetValueForOption(progressOption) ?? "auto",
                 SourceSymbol: null));
         });
 
         return command;
     }
 
-    private static Command BuildFindCommand(Option<bool> verboseOption, Option<bool> quietOption, Option<bool> dryRunOption)
+    private static Command BuildFindCommand(Option<bool> verboseOption, Option<bool> quietOption, Option<bool> dryRunOption, Option<string> progressOption)
     {
         var packageOption = new Option<string>("--package", "NuGet package id") { IsRequired = true };
         packageOption.AddAlias("-p");
@@ -160,6 +169,7 @@ public static class CliApp
                 Quiet: parse.GetValueForOption(quietOption),
                 DryRun: parse.GetValueForOption(dryRunOption),
                 Format: parse.GetValueForOption(formatOption) ?? "text",
+                Progress: parse.GetValueForOption(progressOption) ?? "auto",
                 SourceSymbol: symbol));
         });
 
@@ -169,13 +179,14 @@ public static class CliApp
     private static int RunPlan(PlanRequest request)
     {
         var format = NormalizeFormat(request.Format);
+        var progress = NormalizeProgress(request.Progress);
 
         if (request.Verbose)
         {
             Console.Error.WriteLine("[nupeek] preparing execution plan...");
         }
 
-        var outcome = request.DryRun ? HandleDryRun(request) : HandleRealRun(request);
+        var outcome = ExecutePlan(request, format, progress);
         EmitOutcome(outcome, request, format);
 
         if (request.Verbose)
@@ -198,6 +209,51 @@ public static class CliApp
             null,
             null,
             null);
+    }
+
+    private static CliOutcome ExecutePlan(PlanRequest request, string format, string progress)
+    {
+        if (request.DryRun)
+        {
+            return HandleDryRun(request);
+        }
+
+        if (!ShouldShowSpinner(request, format, progress))
+        {
+            return HandleRealRun(request);
+        }
+
+        return ExecuteWithSpinner(request, () => HandleRealRun(request));
+    }
+
+    private static bool ShouldShowSpinner(PlanRequest request, string format, string progress)
+    {
+        if (request.Quiet || request.Verbose || string.Equals(format, "json", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (string.Equals(progress, "always", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (string.Equals(progress, "never", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return !Console.IsErrorRedirected;
+    }
+
+    private static CliOutcome ExecuteWithSpinner(PlanRequest request, Func<CliOutcome> action)
+    {
+        using var spinner = new Spinner("Executing Nupeek", Console.Error);
+        spinner.Start();
+
+        var outcome = action();
+        spinner.Stop(outcome.ExitCode == ExitCodes.Success ? "Done" : "Failed");
+        return outcome;
     }
 
     private static CliOutcome HandleRealRun(PlanRequest request)
@@ -291,6 +347,18 @@ public static class CliApp
         throw new ArgumentException("Invalid --format value. Allowed: text, json.", nameof(format));
     }
 
+    private static string NormalizeProgress(string progress)
+    {
+        if (string.Equals(progress, "auto", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(progress, "always", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(progress, "never", StringComparison.OrdinalIgnoreCase))
+        {
+            return progress.ToLowerInvariant();
+        }
+
+        throw new ArgumentException("Invalid --progress value. Allowed: auto, always, never.", nameof(progress));
+    }
+
     private static void WriteJson(CliRunResult payload)
     {
         Console.WriteLine(JsonSerializer.Serialize(payload, JsonOptions));
@@ -339,6 +407,7 @@ public static class CliApp
         bool Quiet,
         bool DryRun,
         string Format,
+        string Progress,
         string? SourceSymbol);
 
     private sealed record CliOutcome(
@@ -367,4 +436,77 @@ public static class CliApp
         bool DryRun,
         int ExitCode,
         string? Error);
+
+    private sealed class Spinner : IDisposable
+    {
+        private static readonly char[] Frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+
+        private readonly TextWriter _writer;
+        private readonly string _label;
+        private readonly Stopwatch _stopwatch = new();
+        private CancellationTokenSource? _cts;
+        private Task? _task;
+
+        public Spinner(string label, TextWriter writer)
+        {
+            _label = label;
+            _writer = writer;
+        }
+
+        public void Start()
+        {
+            _cts = new CancellationTokenSource();
+            _stopwatch.Start();
+            _task = Task.Run(() => RenderLoop(_cts.Token));
+        }
+
+        public void Stop(string status)
+        {
+            if (_cts is null)
+            {
+                return;
+            }
+
+            _cts.Cancel();
+
+            try
+            {
+                _task?.Wait();
+            }
+            catch (AggregateException)
+            {
+                // Ignore cancellation propagation from background loop.
+            }
+
+            _stopwatch.Stop();
+            _writer.Write($"\r{status} ({_stopwatch.Elapsed.TotalSeconds:F1}s)\n");
+            _writer.Flush();
+        }
+
+        public void Dispose()
+        {
+            _cts?.Dispose();
+        }
+
+        private void RenderLoop(CancellationToken token)
+        {
+            var index = 0;
+
+            while (!token.IsCancellationRequested)
+            {
+                _writer.Write($"\r{Frames[index]} {_label}...");
+                _writer.Flush();
+                index = (index + 1) % Frames.Length;
+
+                try
+                {
+                    Task.Delay(80, token).Wait(token);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+            }
+        }
+    }
 }
