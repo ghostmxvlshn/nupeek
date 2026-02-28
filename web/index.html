@@ -20,7 +20,7 @@
       <a href="#install">Install</a>
       <a href="#usage">Usage</a>
     </nav>
-    <a class="btn ghost" href="https://github.com/ghostmxvlshn/nupeek" target="_blank" rel="noreferrer">GitHub</a>
+    <a class="gh-link" href="https://github.com/ghostmxvlshn/nupeek" target="_blank" rel="noreferrer" aria-label="Open GitHub repository">GitHub ↗</a>
   </header>
 
   <main class="container">
@@ -51,12 +51,12 @@
       </article>
       <article id="solution" class="panel">
         <h2>The solution</h2>
-        <p>Nupeek performs targeted decompilation:</p>
+        <p>Nupeek pulls out only the package source your agent needs:</p>
         <ol>
-          <li>Resolve package + version</li>
-          <li>Select best TFM</li>
-          <li>Find assembly containing your type</li>
-          <li>Generate decompiled C# + index/manifest</li>
+          <li>Find package + version</li>
+          <li>Pick best runtime target (<strong>TFM</strong> = target framework, e.g. <code>net8.0</code>)</li>
+          <li>Locate your type in the correct assembly</li>
+          <li>Generate readable C# + quick lookup files</li>
         </ol>
         <p>You get deterministic local files your agent can inspect immediately.</p>
       </article>
@@ -72,7 +72,8 @@ nupeek --help</code></pre>
         </article>
         <article class="card">
           <h3>One-line installer</h3>
-          <pre><code>curl -fsSL https://raw.githubusercontent.com/ghostmxvlshn/nupeek/main/install.sh | bash</code></pre>
+          <pre><code>curl -fsSL \
+  https://raw.githubusercontent.com/ghostmxvlshn/nupeek/main/install.sh | bash</code></pre>
         </article>
       </div>
     </section>
