@@ -61,6 +61,15 @@ deps-src/
 - Central package management: `Directory.Packages.props`
 - Install guide: `docs/INSTALL.md` (includes curl|sh installer)
 - Release guide: `docs/RELEASE.md`
+- Marketing page: `web/index.html`
+
+## Landing page preview
+
+```bash
+cd web
+python3 -m http.server 8080
+# open http://localhost:8080
+```
 
 ## Git hooks (recommended)
 Install local hooks once per clone:

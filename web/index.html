@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nupeek — Targeted NuGet Decompilation for AI Coding Agents</title>
+  <meta name="description" content="Nupeek helps coding agents inspect real NuGet implementation details by decompiling only the types you use." />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="nav">
+    <div class="brand">nupeek</div>
+    <a class="btn ghost" href="https://github.com/ghostmxvlshn/nupeek" target="_blank" rel="noreferrer">GitHub</a>
+  </header>
+
+  <main>
+    <section class="hero section">
+      <p class="eyebrow">FOR COPILOT, CLAUDE CODE, CODEX, AND OTHER CLI AGENTS</p>
+      <h1>Give your AI agent the source it’s missing.</h1>
+      <p class="lead">Nupeek decompiles <strong>only the NuGet types you actually use</strong> into a local <code>deps-src/</code> folder — so your agent can reason from real implementation, not guesses.</p>
+      <div class="actions">
+        <a class="btn" href="#install">Install Nupeek</a>
+        <a class="btn ghost" href="#workflow">See workflow</a>
+      </div>
+      <div class="terminal">
+        <pre><code>$ nupeek type --package Azure.Messaging.ServiceBus \
+  --type Azure.Messaging.ServiceBus.ServiceBusSender \
+  --out deps-src --dry-run false
+
+✓ outputPath: deps-src/packages/azure.messaging.servicebus/.../ServiceBusSender.decompiled.cs
+✓ indexPath: deps-src/index.json
+✓ manifestPath: deps-src/manifest.json</code></pre>
+      </div>
+    </section>
+
+    <section class="section split">
+      <div>
+        <h2>The problem</h2>
+        <p>Agents can call package APIs, but they often can’t see implementation internals quickly. Hunting through docs or source repos slows down debugging, architecture review, and rule-writing.</p>
+      </div>
+      <div>
+        <h2>The Nupeek approach</h2>
+        <p>Resolve package → pick TFM → locate type assembly → decompile one type → write index + manifest. Fast, deterministic, local-first.</p>
+      </div>
+    </section>
+
+    <section id="install" class="section">
+      <h2>Install</h2>
+      <div class="install-grid">
+        <div class="card">
+          <h3>.NET global tool (recommended)</h3>
+          <pre><code>dotnet tool install -g Nupeek
+nupeek --help</code></pre>
+        </div>
+        <div class="card">
+          <h3>One-line installer</h3>
+          <pre><code>curl -fsSL https://raw.githubusercontent.com/ghostmxvlshn/nupeek/main/install.sh | bash</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <section id="workflow" class="section workflow">
+      <h2>Workflow</h2>
+      <ol>
+        <li><strong>Pick target symbol</strong><br />Identify the package type your code depends on.</li>
+        <li><strong>Run Nupeek</strong><br />Generate decompiled source for that type only.</li>
+        <li><strong>Let agent inspect deps-src</strong><br />Your coding assistant now has real implementation context.</li>
+      </ol>
+    </section>
+
+    <section class="section cta">
+      <h2>Open source and local-first</h2>
+      <p>Nupeek is MIT licensed. No hosted dependency, no cloud lock-in — just files you control.</p>
+      <a class="btn" href="https://github.com/ghostmxvlshn/nupeek" target="_blank" rel="noreferrer">Star on GitHub</a>
+    </section>
+  </main>
+
+  <footer>
+    <small>Nupeek © Open source project by Max & contributors.</small>
+  </footer>
+</body>
+</html>
