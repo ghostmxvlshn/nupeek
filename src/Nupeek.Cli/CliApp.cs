@@ -95,9 +95,17 @@ public static class CliApp
         var globalOptions = new GlobalCliOptions(verboseOption, quietOption, dryRunOption, progressOption);
 
         root.Description += Environment.NewLine + Environment.NewLine +
+            "Command options:" + Environment.NewLine +
+            "  type: --package|-p --type --out [--version] [--tfm] [--format text|json] [--emit files|agent] [--max-chars N]" + Environment.NewLine +
+            "  find: --package|-p --symbol --out [--version] [--tfm] [--format text|json] [--emit files|agent] [--max-chars N]" + Environment.NewLine + Environment.NewLine +
+            "Tip:" + Environment.NewLine +
+            "  Run 'nupeek <command> --help' to see full per-command options." + Environment.NewLine + Environment.NewLine +
             "Examples:" + Environment.NewLine +
             "  nupeek type --package Azure.Messaging.ServiceBus --type Azure.Messaging.ServiceBus.ServiceBusSender --out deps-src" + Environment.NewLine +
-            "  nupeek find --package Polly --symbol Polly.Policy.Handle --out deps-src";
+            "  nupeek type --package Humanizer.Core --version 2.14.1 --tfm netstandard2.0 --type Humanizer.StringHumanizeExtensions --out deps-src --dry-run false" + Environment.NewLine +
+            "  nupeek type --package Polly --type Polly.Policy --out deps-src --format json --emit agent --max-chars 4000 --dry-run false" + Environment.NewLine +
+            "  nupeek find --package Polly --symbol Polly.Policy.Handle --out deps-src" + Environment.NewLine +
+            "  nupeek find --package Dapper --symbol Dapper.SqlMapper.Query --out deps-src --progress never --dry-run false";
 
         root.AddCommand(TypeCommandFactory.Create(globalOptions, request => RunPlanHandler.RunAsync(request, cancellationToken)));
         root.AddCommand(FindCommandFactory.Create(globalOptions, request => RunPlanHandler.RunAsync(request, cancellationToken)));
