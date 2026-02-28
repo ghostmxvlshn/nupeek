@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+msg_file="$1"
+msg="$(head -n 1 "$msg_file" | tr -d '\r')"
+
+# Format: <icon> <type>(optional-scope)!: description
+# Example: ✨ feat(cli): add command parser
+pattern='^(✨|🐛|📝|♻️|✅|🔧|🚀|🧪|📦|🔒|🧹|💥) (feat|fix|docs|style|refactor|test|chore|perf|build|ci|revert)(\([a-z0-9._/-]+\))?(!)?: .+'
+
+if [[ ! "$msg" =~ $pattern ]]; then
+  echo "[commit-msg] Invalid commit message format." >&2
+  echo "Expected: <icon> <type>(optional-scope)!: <description>" >&2
+  echo "Example:  ✨ feat(cli): add argument validation" >&2
+  echo "Allowed types: feat, fix, docs, style, refactor, test, chore, perf, build, ci, revert" >&2
+  echo "Allowed icons: ✨ 🐛 📝 ♻️ ✅ 🔧 🚀 🧪 📦 🔒 🧹 💥" >&2
+  exit 1
+fi
