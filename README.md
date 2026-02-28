@@ -58,6 +58,7 @@ deps-src/
 - Planning: `PLAN.md`
 - CLI UX standards: `docs/CLI_BEST_PRACTICES.md` (derived from https://clig.dev)
 - C# style rules: `.editorconfig`
+- Central package management: `Directory.Packages.props`
 
 ## Git hooks (recommended)
 Install local hooks once per clone:
