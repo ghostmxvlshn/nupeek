@@ -269,9 +269,18 @@ public static class CliApp
         using var spinner = new Spinner("Executing Nupeek", Console.Error);
         spinner.Start();
 
-        var outcome = action();
-        spinner.Stop(outcome.ExitCode == ExitCodes.Success ? "Done" : "Failed");
-        return outcome;
+        CliOutcome? outcome = null;
+
+        try
+        {
+            outcome = action();
+            return outcome;
+        }
+        finally
+        {
+            var status = outcome is not null && outcome.ExitCode == ExitCodes.Success ? "Done" : "Failed";
+            spinner.Stop(status);
+        }
     }
 
     private static CliOutcome HandleRealRun(PlanRequest request, string emit, int maxChars)
@@ -541,8 +550,12 @@ public static class CliApp
         private readonly TextWriter _writer;
         private readonly string _label;
         private readonly Stopwatch _stopwatch = new();
+        private readonly Lock _sync = new();
         private CancellationTokenSource? _cts;
         private Task? _task;
+        private int _lastWidth;
+        private bool _isRunning;
+        private bool _isStopped;
 
         public Spinner(string label, TextWriter writer)
         {
@@ -552,37 +565,83 @@ public static class CliApp
 
         public void Start()
         {
-            _cts = new CancellationTokenSource();
-            _stopwatch.Start();
-            _task = Task.Run(() => RenderLoop(_cts.Token));
+            lock (_sync)
+            {
+                if (_isRunning)
+                {
+                    return;
+                }
+
+                _cts = new CancellationTokenSource();
+                _stopwatch.Restart();
+                _isRunning = true;
+                _isStopped = false;
+                _task = Task.Run(() => RenderLoop(_cts.Token));
+            }
         }
 
         public void Stop(string status)
         {
-            if (_cts is null)
-            {
-                return;
-            }
-
-            _cts.Cancel();
-
-            try
-            {
-                _task?.Wait();
-            }
-            catch (AggregateException)
-            {
-                // Ignore cancellation propagation from background loop.
-            }
-
-            _stopwatch.Stop();
-            _writer.Write($"\r{status} ({_stopwatch.Elapsed.TotalSeconds:F1}s)\n");
-            _writer.Flush();
+            StopInternal(status, writeStatus: true);
         }
 
         public void Dispose()
         {
-            _cts?.Dispose();
+            StopInternal("", writeStatus: false);
+
+            lock (_sync)
+            {
+                _cts?.Dispose();
+                _cts = null;
+                _task = null;
+            }
+        }
+
+        private void StopInternal(string status, bool writeStatus)
+        {
+            CancellationTokenSource? cts;
+            Task? task;
+
+            lock (_sync)
+            {
+                if (_isStopped)
+                {
+                    return;
+                }
+
+                _isStopped = true;
+                _isRunning = false;
+                cts = _cts;
+                task = _task;
+            }
+
+            cts?.Cancel();
+
+            try
+            {
+                task?.Wait();
+            }
+            catch (AggregateException ex) when (ex.InnerExceptions.All(e => e is OperationCanceledException or TaskCanceledException))
+            {
+                // ignore cancellation-only waits
+            }
+
+            lock (_sync)
+            {
+                _stopwatch.Stop();
+
+                if (_lastWidth > 0)
+                {
+                    _writer.Write("\r" + new string(' ', _lastWidth) + "\r");
+                }
+
+                if (writeStatus)
+                {
+                    _writer.Write($"{status} ({_stopwatch.Elapsed.TotalSeconds:F1}s)\n");
+                }
+
+                _writer.Flush();
+            }
         }
 
         private void RenderLoop(CancellationToken token)
@@ -591,8 +650,15 @@ public static class CliApp
 
             while (!token.IsCancellationRequested)
             {
-                _writer.Write($"\r{Frames[index]} {_label}...");
-                _writer.Flush();
+                var text = $"{Frames[index]} {_label}...";
+
+                lock (_sync)
+                {
+                    _lastWidth = Math.Max(_lastWidth, text.Length);
+                    _writer.Write($"\r{text}");
+                    _writer.Flush();
+                }
+
                 index = (index + 1) % Frames.Length;
 
                 try
