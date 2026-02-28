@@ -20,27 +20,36 @@ public static class CliApp
     /// </summary>
     public static async Task<int> RunAsync(string[] args, IConsole? console = null)
     {
-        var root = BuildRootCommand();
-
-        if (args.Any(static a => a is "--help" or "-h"))
+        using var cancellation = new CancellationTokenSource();
+        ConsoleCancelEventHandler cancelHandler = (_, eventArgs) =>
         {
-            return await root.InvokeAsync(args, console).ConfigureAwait(false);
-        }
+            eventArgs.Cancel = true;
+            cancellation.Cancel();
+        };
 
-        var parseResult = root.Parse(args);
-        if (parseResult.Errors.Count > 0)
-        {
-            foreach (var error in parseResult.Errors)
-            {
-                Console.Error.WriteLine(error.Message);
-            }
-
-            Console.Error.WriteLine("Run 'nupeek --help' for usage.");
-            return ExitCodes.InvalidArguments;
-        }
+        Console.CancelKeyPress += cancelHandler;
 
         try
         {
+            var root = BuildRootCommand(cancellation.Token);
+
+            if (args.Any(static a => a is "--help" or "-h"))
+            {
+                return await root.InvokeAsync(args, console).ConfigureAwait(false);
+            }
+
+            var parseResult = root.Parse(args);
+            if (parseResult.Errors.Count > 0)
+            {
+                foreach (var error in parseResult.Errors)
+                {
+                    Console.Error.WriteLine(error.Message);
+                }
+
+                Console.Error.WriteLine("Run 'nupeek --help' for usage.");
+                return ExitCodes.InvalidArguments;
+            }
+
             Environment.ExitCode = ExitCodes.Success;
             var invokeCode = await root.InvokeAsync(args, console).ConfigureAwait(false);
             return invokeCode != ExitCodes.Success ? invokeCode : Environment.ExitCode;
@@ -55,17 +64,26 @@ public static class CliApp
             Console.Error.WriteLine(innerArg.Message);
             return ExitCodes.InvalidArguments;
         }
+        catch (OperationCanceledException)
+        {
+            Console.Error.WriteLine("Operation canceled.");
+            return ExitCodes.OperationCanceled;
+        }
         catch (Exception ex)
         {
             Console.Error.WriteLine($"Unexpected error: {ex.Message}");
             return ExitCodes.GenericError;
+        }
+        finally
+        {
+            Console.CancelKeyPress -= cancelHandler;
         }
     }
 
     /// <summary>
     /// Creates the root command and global options.
     /// </summary>
-    public static RootCommand BuildRootCommand()
+    public static RootCommand BuildRootCommand(CancellationToken cancellationToken)
     {
         var verboseOption = new Option<bool>("--verbose", "Show extra diagnostics on stderr.");
         var quietOption = new Option<bool>("--quiet", "Suppress non-essential stdout output.");
@@ -89,13 +107,13 @@ public static class CliApp
             "  nupeek type --package Azure.Messaging.ServiceBus --type Azure.Messaging.ServiceBus.ServiceBusSender --out deps-src" + Environment.NewLine +
             "  nupeek find --package Polly --symbol Polly.Policy.Handle --out deps-src";
 
-        root.AddCommand(TypeCommandFactory.Create(globalOptions, RunPlanAsync));
-        root.AddCommand(FindCommandFactory.Create(globalOptions, RunPlanAsync));
+        root.AddCommand(TypeCommandFactory.Create(globalOptions, request => RunPlanAsync(request, cancellationToken)));
+        root.AddCommand(FindCommandFactory.Create(globalOptions, request => RunPlanAsync(request, cancellationToken)));
 
         return root;
     }
 
-    private static async Task<int> RunPlanAsync(PlanRequest request)
+    private static async Task<int> RunPlanAsync(PlanRequest request, CancellationToken cancellationToken)
     {
         var format = InputValidation.NormalizeFormat(request.Format);
         var emit = InputValidation.NormalizeEmit(request.Emit);
@@ -107,7 +125,7 @@ public static class CliApp
             Console.Error.WriteLine("[nupeek] preparing execution plan...");
         }
 
-        var outcome = await ExecutePlanAsync(request, format, emit, progress, maxChars).ConfigureAwait(false);
+        var outcome = await ExecutePlanAsync(request, format, emit, progress, maxChars, cancellationToken).ConfigureAwait(false);
         EmitOutcome(outcome, request, format, emit);
 
         if (request.Verbose)
@@ -136,7 +154,7 @@ public static class CliApp
             false);
     }
 
-    private static Task<CliOutcome> ExecutePlanAsync(PlanRequest request, string format, string emit, string progress, int maxChars)
+    private static Task<CliOutcome> ExecutePlanAsync(PlanRequest request, string format, string emit, string progress, int maxChars, CancellationToken cancellationToken)
     {
         if (request.DryRun)
         {
@@ -145,10 +163,10 @@ public static class CliApp
 
         if (!ShouldShowSpinner(request, format, progress))
         {
-            return HandleRealRunAsync(request, emit, maxChars);
+            return HandleRealRunAsync(request, emit, maxChars, cancellationToken);
         }
 
-        return ExecuteWithSpinnerAsync(() => HandleRealRunAsync(request, emit, maxChars));
+        return ExecuteWithSpinnerAsync(() => HandleRealRunAsync(request, emit, maxChars, cancellationToken));
     }
 
     private static bool ShouldShowSpinner(PlanRequest request, string format, string progress)
@@ -190,7 +208,7 @@ public static class CliApp
         }
     }
 
-    private static async Task<CliOutcome> HandleRealRunAsync(PlanRequest request, string emit, int maxChars)
+    private static async Task<CliOutcome> HandleRealRunAsync(PlanRequest request, string emit, int maxChars, CancellationToken cancellationToken)
     {
         try
         {
@@ -200,7 +218,7 @@ public static class CliApp
                 string.Equals(request.Version, "latest", StringComparison.OrdinalIgnoreCase) ? null : request.Version,
                 string.Equals(request.Tfm, "auto", StringComparison.OrdinalIgnoreCase) ? null : request.Tfm,
                 request.Type,
-                request.OutDir)).ConfigureAwait(false);
+                request.OutDir), cancellationToken).ConfigureAwait(false);
 
             var inlineSource = InlineSourceReader.ReadInlineSource(result.OutputPath, emit, maxChars);
 
@@ -218,6 +236,10 @@ public static class CliApp
                 inlineSource.MaxChars,
                 inlineSource.OriginalChars,
                 inlineSource.Truncated);
+        }
+        catch (OperationCanceledException)
+        {
+            return new CliOutcome(ExitCodes.OperationCanceled, "Operation canceled.", request.Package, request.Version, request.Tfm, null, null, null, null, null, null, null, false);
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
         {

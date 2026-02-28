@@ -22,4 +22,7 @@ public static class ExitCodes
 
     /// <summary>Failure while decompiling or writing generated output.</summary>
     public const int DecompilationFailure = 5;
+
+    /// <summary>Operation canceled by user (Ctrl+C).</summary>
+    public const int OperationCanceled = 130;
 }
