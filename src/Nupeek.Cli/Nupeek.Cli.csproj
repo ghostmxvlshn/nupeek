@@ -4,9 +4,24 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>nupeek</ToolCommandName>
+    <PackageId>Nupeek</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>ghostmxvlshn</Authors>
+    <Description>Targeted NuGet decompilation for coding agents.</Description>
+    <PackageTags>nuget;decompile;cli;dotnet-tool</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/ghostmxvlshn/nupeek</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Nupeek.Core\Nupeek.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="System.CommandLine" />
