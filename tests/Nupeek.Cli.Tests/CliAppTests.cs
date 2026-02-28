@@ -29,6 +29,29 @@ public class CliAppTests
     }
 
     [Fact]
+    public async Task RunAsync_TypeCommandFailure_ReturnsNonZeroExitCode()
+    {
+        // Arrange
+        var outDir = Path.Combine(Path.GetTempPath(), $"nupeek-cli-test-{Guid.NewGuid():N}");
+        var args = new[]
+        {
+            "type",
+            "--package", "../../pwned",
+            "--version", "1.0.0",
+            "--type", "A.B",
+            "--out", outDir,
+            "--dry-run", "false",
+            "--quiet",
+        };
+
+        // Act
+        var code = await CliApp.RunAsync(args);
+
+        // Assert
+        Assert.Equal(ExitCodes.DecompilationFailure, code);
+    }
+
+    [Fact]
     public void BuildPlanText_IncludesSymbolWhenProvided()
     {
         // Arrange
