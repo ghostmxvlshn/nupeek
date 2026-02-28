@@ -13,6 +13,12 @@ public sealed class TypeDecompiler
     /// Decompiles the requested type and writes the generated source to disk.
     /// </summary>
     public void DecompileType(string assemblyPath, string fullTypeName, string outputPath)
+        => DecompileTypeAsync(assemblyPath, fullTypeName, outputPath).GetAwaiter().GetResult();
+
+    /// <summary>
+    /// Decompiles the requested type and writes the generated source to disk (async write).
+    /// </summary>
+    public async Task DecompileTypeAsync(string assemblyPath, string fullTypeName, string outputPath, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(assemblyPath);
         ArgumentException.ThrowIfNullOrWhiteSpace(fullTypeName);
@@ -35,6 +41,6 @@ public sealed class TypeDecompiler
             ?? throw new InvalidOperationException("Output path directory is missing.");
 
         Directory.CreateDirectory(directory);
-        File.WriteAllText(outputPath, syntax.ToString());
+        await File.WriteAllTextAsync(outputPath, syntax.ToString(), cancellationToken).ConfigureAwait(false);
     }
 }

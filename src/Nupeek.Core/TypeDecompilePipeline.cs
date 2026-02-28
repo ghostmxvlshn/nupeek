@@ -65,18 +65,18 @@ public sealed class TypeDecompilePipeline
             request.TypeName);
 
         // 4) Decompile target type into generated C# file.
-        _decompiler.DecompileType(content.AssemblyPath, request.TypeName, outputPath);
+        await _decompiler.DecompileTypeAsync(content.AssemblyPath, request.TypeName, outputPath, cancellationToken).ConfigureAwait(false);
 
         // 5) Update index and manifest for downstream tooling.
-        var indexPath = _catalogWriter.WriteIndex(request.OutputRoot, request.TypeName, outputPath);
-        var manifestPath = _catalogWriter.WriteManifest(request.OutputRoot, new ManifestEntry(
+        var indexPath = await _catalogWriter.WriteIndexAsync(request.OutputRoot, request.TypeName, outputPath, cancellationToken).ConfigureAwait(false);
+        var manifestPath = await _catalogWriter.WriteManifestAsync(request.OutputRoot, new ManifestEntry(
             package.PackageId,
             package.Version,
             content.SelectedTfm,
             request.TypeName,
             content.AssemblyPath,
             outputPath,
-            DateTimeOffset.UtcNow));
+            DateTimeOffset.UtcNow), cancellationToken).ConfigureAwait(false);
 
         return new TypeDecompileResult(
             package.PackageId,

@@ -220,7 +220,7 @@ public static class CliApp
                 request.Type,
                 request.OutDir), cancellationToken).ConfigureAwait(false);
 
-            var inlineSource = InlineSourceReader.ReadInlineSource(result.OutputPath, emit, maxChars);
+            var inlineSource = await InlineSourceReader.ReadInlineSourceAsync(result.OutputPath, emit, maxChars, cancellationToken).ConfigureAwait(false);
 
             return new CliOutcome(
                 ExitCodes.Success,
