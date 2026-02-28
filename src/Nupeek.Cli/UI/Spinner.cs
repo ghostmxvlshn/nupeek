@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 namespace Nupeek.Cli;
 
-internal sealed class Spinner : IDisposable
+internal sealed class Spinner : IAsyncDisposable
 {
     private const string ClearToEndOfLine = "\x1b[K";
     private static readonly char[] Frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
@@ -39,33 +39,26 @@ internal sealed class Spinner : IDisposable
         }
     }
 
-    public void Stop(string status)
-    {
-        StopInternal(status, writeStatus: true);
-    }
+    public ValueTask StopAsync(string status)
+        => StopInternalAsync(status, writeStatus: true);
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         try
         {
-            StopInternal(string.Empty, writeStatus: false);
+            await StopInternalAsync(string.Empty, writeStatus: false).ConfigureAwait(false);
         }
         catch
         {
-            // Dispose should be best-effort and never throw.
+            // DisposeAsync should be best-effort and never throw.
         }
         finally
         {
-            lock (_sync)
-            {
-                _cts?.Dispose();
-                _cts = null;
-                _task = null;
-            }
+            DisposeResources();
         }
     }
 
-    private void StopInternal(string status, bool writeStatus)
+    private async ValueTask StopInternalAsync(string status, bool writeStatus)
     {
         CancellationTokenSource? cts;
         Task? task;
@@ -87,11 +80,14 @@ internal sealed class Spinner : IDisposable
 
         try
         {
-            task?.GetAwaiter().GetResult();
+            if (task is not null)
+            {
+                await task.ConfigureAwait(false);
+            }
         }
         catch (Exception ex) when (writeStatus is false || ex is OperationCanceledException or TaskCanceledException)
         {
-            // swallow in Dispose() path, and ignore cancellation-only completion
+            // swallow in dispose path, and ignore cancellation-only completion
         }
 
         lock (_sync)
@@ -105,6 +101,16 @@ internal sealed class Spinner : IDisposable
             }
 
             _writer.Flush();
+        }
+    }
+
+    private void DisposeResources()
+    {
+        lock (_sync)
+        {
+            _cts?.Dispose();
+            _cts = null;
+            _task = null;
         }
     }
 
