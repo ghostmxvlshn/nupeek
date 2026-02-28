@@ -128,6 +128,26 @@ public class CliAppTests
     }
 
     [Fact]
+    public async Task RunAsync_InvalidProgressValue_ReturnsGenericError()
+    {
+        // Arrange
+        var args = new[]
+        {
+            "type",
+            "--package", "Polly",
+            "--type", "Polly.Policy",
+            "--out", "deps-src",
+            "--progress", "fast",
+        };
+
+        // Act
+        var code = await CliApp.RunAsync(args);
+
+        // Assert
+        Assert.Equal(ExitCodes.GenericError, code);
+    }
+
+    [Fact]
     public void BuildPlanText_IncludesSymbolWhenProvided()
     {
         // Arrange
