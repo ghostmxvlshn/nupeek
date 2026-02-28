@@ -1,0 +1,44 @@
+<svg width="900" height="560" viewBox="0 0 900 560" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g1" x1="80" y1="70" x2="760" y2="520" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7DD3FC"/>
+      <stop offset="0.45" stop-color="#A78BFA"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(530 280) rotate(100) scale(330 420)">
+      <stop stop-color="#A78BFA" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#0B1020" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect x="0" y="0" width="900" height="560" rx="24" fill="#0A1022"/>
+  <rect x="0" y="0" width="900" height="560" rx="24" fill="url(#glow)"/>
+
+  <rect x="70" y="74" width="760" height="410" rx="18" fill="#0E162F" stroke="#2A3A61"/>
+  <rect x="70" y="74" width="760" height="48" rx="18" fill="#121D3A"/>
+  <circle cx="98" cy="98" r="7" fill="#FF5F56"/>
+  <circle cx="120" cy="98" r="7" fill="#FFBD2E"/>
+  <circle cx="142" cy="98" r="7" fill="#27C93F"/>
+
+  <rect x="104" y="158" width="295" height="26" rx="8" fill="#1B2A4A"/>
+  <rect x="104" y="200" width="412" height="18" rx="6" fill="#182846"/>
+  <rect x="104" y="228" width="500" height="18" rx="6" fill="#182846"/>
+  <rect x="104" y="256" width="378" height="18" rx="6" fill="#182846"/>
+
+  <rect x="520" y="160" width="270" height="220" rx="14" fill="#0B132B" stroke="#2A3A61"/>
+  <path d="M546 203H760" stroke="#2A3A61" stroke-width="2"/>
+  <path d="M546 243H760" stroke="#2A3A61" stroke-width="2"/>
+  <path d="M546 283H760" stroke="#2A3A61" stroke-width="2"/>
+  <path d="M546 323H760" stroke="#2A3A61" stroke-width="2"/>
+
+  <path d="M214 376L324 338L406 365L560 297" stroke="url(#g1)" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="214" cy="376" r="8" fill="#7DD3FC"/>
+  <circle cx="324" cy="338" r="8" fill="#A78BFA"/>
+  <circle cx="406" cy="365" r="8" fill="#22D3EE"/>
+  <circle cx="560" cy="297" r="8" fill="#7DD3FC"/>
+
+  <text x="104" y="176" fill="#A7B7DA" font-family="JetBrains Mono, monospace" font-size="16">nupeek type --package ... --type ...</text>
+  <text x="542" y="188" fill="#8FA9D7" font-family="JetBrains Mono, monospace" font-size="13">deps-src/index.json</text>
+  <text x="542" y="228" fill="#8FA9D7" font-family="JetBrains Mono, monospace" font-size="13">deps-src/manifest.json</text>
+  <text x="542" y="268" fill="#8FA9D7" font-family="JetBrains Mono, monospace" font-size="13">ServiceBusSender.decompiled.cs</text>
+</svg>
