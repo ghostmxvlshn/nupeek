@@ -56,3 +56,4 @@ deps-src/
 - Runtime: .NET 10 (`net10.0`)
 - CI: `.github/workflows/ci.yml` (restore/build/test)
 - Planning: `PLAN.md`
+- CLI UX standards: `docs/CLI_BEST_PRACTICES.md` (derived from https://clig.dev)
