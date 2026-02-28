@@ -2,7 +2,7 @@ using Nupeek.Cli;
 using Nupeek.Core;
 using System.CommandLine;
 
-return await BuildRootCommand().InvokeAsync(args);
+return await BuildRootCommand().InvokeAsync(args).ConfigureAwait(false);
 
 static RootCommand BuildRootCommand()
 {
@@ -121,7 +121,9 @@ static int RunPlan(
         Console.WriteLine($"version: {version}");
         Console.WriteLine($"tfm: {tfm}");
         if (!string.IsNullOrWhiteSpace(sourceSymbol))
+        {
             Console.WriteLine($"symbol: {sourceSymbol}");
+        }
         Console.WriteLine($"type: {type}");
         Console.WriteLine($"out: {outDir}");
         Console.WriteLine($"dryRun: {dryRun}");
