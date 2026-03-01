@@ -9,4 +9,9 @@
   <ItemGroup>
     <PackageReference Include="Polly" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="deps-src/**/*.cs" />
+    <None Include="deps-src/**" />
+  </ItemGroup>
 </Project>

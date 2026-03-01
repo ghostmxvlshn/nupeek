@@ -79,7 +79,7 @@ public static class CliApp
     {
         var verboseOption = new Option<bool>("--verbose", "Show extra diagnostics on stderr.");
         var quietOption = new Option<bool>("--quiet", "Suppress non-essential stdout output.");
-        var dryRunOption = new Option<bool>("--dry-run", () => true, "Show execution plan without decompiling.");
+        var dryRunOption = new Option<bool>("--dry-run", () => false, "Show execution plan without decompiling.");
         var progressOption = new Option<string>("--progress", () => "auto", "Progress indicator: auto (default), always, never.");
 
         var root = new RootCommand("Nupeek: targeted NuGet decompilation for coding agents.")
