@@ -8,12 +8,14 @@ internal static class RunPlanRealExecution
     {
         try
         {
+            var normalizedType = TypeNameNormalizer.Normalize(request.Type);
+
             var pipeline = new TypeDecompilePipeline();
             var result = await pipeline.RunAsync(new TypeDecompileRequest(
                 request.Package,
                 string.Equals(request.Version, "latest", StringComparison.OrdinalIgnoreCase) ? null : request.Version,
                 string.Equals(request.Tfm, "auto", StringComparison.OrdinalIgnoreCase) ? null : request.Tfm,
-                request.Type,
+                normalizedType,
                 request.OutDir), cancellationToken).ConfigureAwait(false);
 
             var inlineSource = await InlineSourceReader
