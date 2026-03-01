@@ -63,6 +63,7 @@ public class CliAppTests
             "--package", "Polly",
             "--type", "Polly.Policy",
             "--out", "deps-src",
+            "--dry-run", "true",
             "--format", "json",
             "--emit", "agent",
             "--max-chars", "500",
