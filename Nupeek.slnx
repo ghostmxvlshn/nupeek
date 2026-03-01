@@ -7,4 +7,7 @@
     <Project Path="tests/Nupeek.Core.Tests/Nupeek.Core.Tests.csproj" />
     <Project Path="tests/Nupeek.Cli.Tests/Nupeek.Cli.Tests.csproj" />
   </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/NupeekSmokeLab/NupeekSmokeLab.csproj" />
+  </Folder>
 </Solution>
