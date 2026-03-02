@@ -1,7 +1,6 @@
 using Nupeek.Core;
 using System.CommandLine;
 using System.CommandLine.Invocation;
-using System.Text.Json;
 
 namespace Nupeek.Cli;
 
@@ -18,8 +17,7 @@ internal static class ListCommandFactory
             new Option<string?>("--version", "NuGet package version. Defaults to latest. Ignored with --assembly."),
             new Option<string?>("--tfm", "Target framework moniker. Defaults to auto."),
             new Option<string>("--out", () => "deps-src", "Output/cache directory for package mode."),
-            new Option<string?>("--query", "Optional type-name filter (prefix/contains)."),
-            new Option<string>("--format", () => "text", "Output format: text (default) or json."));
+            new Option<string?>("--query", "Optional type-name filter (prefix/contains)."));
 
         var command = new Command("list", "List available types from package or assembly.");
         command.AddOption(options.Package);
@@ -28,7 +26,6 @@ internal static class ListCommandFactory
         command.AddOption(options.Tfm);
         command.AddOption(options.Out);
         command.AddOption(options.Query);
-        command.AddOption(options.Format);
 
         command.SetHandler(async (InvocationContext context) =>
             await HandleAsync(context, options, cancellationToken).ConfigureAwait(false));
@@ -53,7 +50,7 @@ internal static class ListCommandFactory
         var types = await ResolveTypesAsync(parse, options, package, assembly, cancellationToken).ConfigureAwait(false);
         var filtered = FilterTypes(types, parse.GetValueForOption(options.Query));
 
-        WriteOutput(filtered, InputValidation.NormalizeFormat(parse.GetValueForOption(options.Format) ?? "text"));
+        WriteOutput(filtered);
         Environment.ExitCode = ExitCodes.Success;
     }
 
@@ -95,14 +92,8 @@ internal static class ListCommandFactory
             .ToList();
     }
 
-    private static void WriteOutput(IReadOnlyList<string> types, string format)
+    private static void WriteOutput(IReadOnlyList<string> types)
     {
-        if (string.Equals(format, "json", StringComparison.Ordinal))
-        {
-            Console.WriteLine(JsonSerializer.Serialize(types, new JsonSerializerOptions { WriteIndented = true }));
-            return;
-        }
-
         foreach (var type in types)
         {
             Console.WriteLine(type);
@@ -132,6 +123,5 @@ internal static class ListCommandFactory
         Option<string?> Version,
         Option<string?> Tfm,
         Option<string> Out,
-        Option<string?> Query,
-        Option<string> Format);
+        Option<string?> Query);
 }

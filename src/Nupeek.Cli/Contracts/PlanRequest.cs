@@ -12,8 +12,5 @@ internal sealed record PlanRequest(
     bool Verbose,
     bool Quiet,
     bool DryRun,
-    string Format,
-    string Emit,
-    int MaxChars,
     string Progress,
     string? SourceSymbol);

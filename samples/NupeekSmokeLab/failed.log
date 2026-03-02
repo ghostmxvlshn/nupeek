@@ -1,0 +1,37 @@
+Nupeek commands executed in order during WaitAndRetry investigation
+==================================================================
+
+1. [DRY RUN - ExitCode 0, no decompilation] 
+   nupeek find --package Polly --symbol WaitAndRetry --out deps-src --emit agent --format json --max-chars 12000
+
+2. [ExitCode 4 - Type not found in Polly package]
+   nupeek find --package Polly --symbol WaitAndRetry --out deps-src --emit agent --format json --max-chars 16000 --dry-run false --progress never
+   Error: Type 'WaitAndRetry' was not found in 'deps-src/.cache/packages/polly/8.6.5/extracted/lib/net6.0'
+
+3. [ExitCode 4 - Type not found]
+   nupeek find --package Polly --symbol "Polly.Retry.RetryResilienceStrategy" --out deps-src --emit agent --format json --max-chars 16000 --dry-run false --progress never
+   Error: Type 'Polly.Retry' was not found in 'deps-src/.cache/packages/polly/8.6.5/extracted/lib/net6.0'
+
+4. [ExitCode 4 - Type not found in Polly.Core]
+   nupeek find --package Polly.Core --symbol "WaitAndRetry" --out deps-src --emit agent --format json --max-chars 16000 --dry-run false --progress never
+   Error: Type 'WaitAndRetry' was not found in 'deps-src/.cache/packages/polly.core/8.6.5/extracted/lib/net8.0'
+
+5. [ExitCode 4 - Type not found with explicit tfm]
+   nupeek type --package Polly.Core --type "Polly.Retry.RetryResilienceStrategy" --out deps-src --emit agent --format json --max-chars 16000 --dry-run false --progress never
+   Error: Type 'Polly.Retry.RetryResilienceStrategy' was not found in 'deps-src/.cache/packages/polly.core/8.6.5/extracted/lib/net8.0'
+
+6. [ExitCode 4 - Same error with --tfm net8.0]
+   nupeek type --package Polly.Core --type "Polly.Retry.RetryResilienceStrategy" --out deps-src --emit agent --format json --max-chars 16000 --dry-run false --progress never --tfm net8.0
+   Error: Type 'Polly.Retry.RetryResilienceStrategy' was not found in 'deps-src/.cache/packages/polly.core/8.6.5/extracted/lib/net8.0'
+
+7. [ExitCode 0 - SUCCESS - but non-generic wrapper only (112 chars)]
+   nupeek type --package Polly.Core --type "Polly.Retry.RetryStrategyOptions" --out deps-src --emit agent --format json --max-chars 16000 --dry-run false --progress never
+   Output: public class RetryStrategyOptions : RetryStrategyOptions<object> {} 
+
+8. [ExitCode 4 - backtick in type name was stripped by shell to literal "1"]
+   nupeek type --package Polly.Core --type "Polly.Retry.RetryStrategyOptions`1" --out deps-src --emit agent --format json --max-chars 16000 --dry-run false --progress never
+   Error: Type 'Polly.Retry.RetryStrategyOptions1' was not found
+
+9. [HUNG - process killed]
+   python3 -c "... re.findall on Polly.Core.dll bytes for Retry/Wait type names ..."
+   Status: Process appeared to hang reading the DLL; stopped manually

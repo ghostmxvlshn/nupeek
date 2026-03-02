@@ -16,9 +16,6 @@ internal static class FindCommandFactory
         var tfmOption = new Option<string?>("--tfm", "Target framework moniker. Defaults to auto.");
         var symbolOption = new Option<string>("--symbol", "Symbol name, e.g. Namespace.Type.Method") { IsRequired = true };
         var outOption = new Option<string>("--out", "Output directory (e.g. deps-src)") { IsRequired = true };
-        var formatOption = new Option<string>("--format", () => "text", "Output format: text (default) or json.");
-        var emitOption = new Option<string>("--emit", () => "files", "Emit mode: files (default) or agent.");
-        var maxCharsOption = new Option<int>("--max-chars", () => 12000, "Max inline source chars for --emit agent.");
 
         var command = new Command("find", "Resolve symbol to type and decompile that type.");
         command.AddOption(packageOption);
@@ -27,9 +24,6 @@ internal static class FindCommandFactory
         command.AddOption(tfmOption);
         command.AddOption(symbolOption);
         command.AddOption(outOption);
-        command.AddOption(formatOption);
-        command.AddOption(emitOption);
-        command.AddOption(maxCharsOption);
 
         command.SetHandler(async (InvocationContext context) =>
         {
@@ -58,9 +52,6 @@ internal static class FindCommandFactory
                 Verbose: parse.GetValueForOption(globalOptions.Verbose),
                 Quiet: parse.GetValueForOption(globalOptions.Quiet),
                 DryRun: parse.GetValueForOption(globalOptions.DryRun),
-                Format: parse.GetValueForOption(formatOption) ?? "text",
-                Emit: parse.GetValueForOption(emitOption) ?? "files",
-                MaxChars: parse.GetValueForOption(maxCharsOption),
                 Progress: parse.GetValueForOption(globalOptions.Progress) ?? "auto",
                 SourceSymbol: symbol)).ConfigureAwait(false);
         });

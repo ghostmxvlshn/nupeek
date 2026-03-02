@@ -4,7 +4,7 @@ namespace Nupeek.Cli;
 
 internal static class RunPlanRealExecution
 {
-    public static async Task<CliOutcome> ExecuteAsync(PlanRequest request, string emit, int maxChars, CancellationToken cancellationToken)
+    public static async Task<CliOutcome> ExecuteAsync(PlanRequest request, CancellationToken cancellationToken)
     {
         try
         {
@@ -20,10 +20,6 @@ internal static class RunPlanRealExecution
                 request.Depth,
                 request.OutDir), cancellationToken).ConfigureAwait(false);
 
-            var inlineSource = await InlineSourceReader
-                .ReadInlineSourceAsync(result.OutputPath, emit, maxChars, cancellationToken)
-                .ConfigureAwait(false);
-
             return new CliOutcome(
                 ExitCodes.Success,
                 null,
@@ -33,27 +29,23 @@ internal static class RunPlanRealExecution
                 result.AssemblyPath,
                 result.OutputPath,
                 result.IndexPath,
-                result.ManifestPath,
-                inlineSource.Content,
-                inlineSource.MaxChars,
-                inlineSource.OriginalChars,
-                inlineSource.Truncated);
+                result.ManifestPath);
         }
         catch (OperationCanceledException)
         {
-            return new CliOutcome(ExitCodes.OperationCanceled, "Operation canceled.", RunPlanSourceLabel.Get(request), request.Version, request.Tfm, null, null, null, null, null, null, null, false);
+            return new CliOutcome(ExitCodes.OperationCanceled, "Operation canceled.", RunPlanSourceLabel.Get(request), request.Version, request.Tfm, null, null, null, null);
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
         {
-            return new CliOutcome(ExitCodes.TypeOrSymbolNotFound, ex.Message, RunPlanSourceLabel.Get(request), request.Version, request.Tfm, null, null, null, null, null, null, null, false);
+            return new CliOutcome(ExitCodes.TypeOrSymbolNotFound, ex.Message, RunPlanSourceLabel.Get(request), request.Version, request.Tfm, null, null, null, null);
         }
         catch (InvalidOperationException ex)
         {
-            return new CliOutcome(ExitCodes.PackageResolutionFailure, ex.Message, RunPlanSourceLabel.Get(request), request.Version, request.Tfm, null, null, null, null, null, null, null, false);
+            return new CliOutcome(ExitCodes.PackageResolutionFailure, ex.Message, RunPlanSourceLabel.Get(request), request.Version, request.Tfm, null, null, null, null);
         }
         catch (Exception ex)
         {
-            return new CliOutcome(ExitCodes.DecompilationFailure, $"Decompilation failed: {ex.Message}", RunPlanSourceLabel.Get(request), request.Version, request.Tfm, null, null, null, null, null, null, null, false);
+            return new CliOutcome(ExitCodes.DecompilationFailure, $"Decompilation failed: {ex.Message}", RunPlanSourceLabel.Get(request), request.Version, request.Tfm, null, null, null, null);
         }
     }
 }

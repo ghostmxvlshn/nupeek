@@ -9,8 +9,4 @@ internal sealed record CliOutcome(
     string? AssemblyPath,
     string? OutputPath,
     string? IndexPath,
-    string? ManifestPath,
-    string? InlineSource,
-    int? MaxChars,
-    int? OriginalChars,
-    bool Truncated);
+    string? ManifestPath);
