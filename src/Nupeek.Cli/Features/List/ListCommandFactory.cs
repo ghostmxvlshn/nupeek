@@ -68,7 +68,7 @@ internal static class ListCommandFactory
 
         if (!string.IsNullOrWhiteSpace(assembly))
         {
-            return locator.ListTypesInAssembly(assembly!);
+            return await locator.ListTypesInAssemblyAsync(assembly!, cancellationToken).ConfigureAwait(false);
         }
 
         var cacheRoot = Path.Combine(parse.GetValueForOption(options.Out)!, ".cache");
@@ -78,7 +78,7 @@ internal static class ListCommandFactory
             parse.GetValueForOption(options.Version),
             cacheRoot), cancellationToken).ConfigureAwait(false);
 
-        return locator.ListTypesInPackage(packageResult.ExtractedPath, parse.GetValueForOption(options.Tfm));
+        return await locator.ListTypesInPackageAsync(packageResult.ExtractedPath, parse.GetValueForOption(options.Tfm), cancellationToken).ConfigureAwait(false);
     }
 
     private static IReadOnlyList<string> FilterTypes(IReadOnlyList<string> types, string? query)

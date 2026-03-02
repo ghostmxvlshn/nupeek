@@ -93,7 +93,7 @@ public sealed class TypeDecompilePipeline
         if (!string.IsNullOrWhiteSpace(request.AssemblyPath))
         {
             var assemblyPath = request.AssemblyPath!.Trim();
-            var content = _locator.LocateInAssembly(assemblyPath, request.TypeName);
+            var content = await _locator.LocateInAssemblyAsync(assemblyPath, request.TypeName, cancellationToken).ConfigureAwait(false);
 
             var packageId = Path.GetFileNameWithoutExtension(assemblyPath).ToLowerInvariant();
             return (packageId, "local", content);
@@ -101,7 +101,7 @@ public sealed class TypeDecompilePipeline
 
         var cacheRoot = Path.Combine(request.OutputRoot, ".cache");
         var package = await _acquirer.AcquireAsync(new NuGetPackageRequest(request.PackageId!, request.Version, cacheRoot), cancellationToken).ConfigureAwait(false);
-        var packageContent = _locator.Locate(new PackageContentRequest(package.ExtractedPath, request.TypeName, request.Tfm));
+        var packageContent = await _locator.LocateAsync(new PackageContentRequest(package.ExtractedPath, request.TypeName, request.Tfm), cancellationToken).ConfigureAwait(false);
 
         return (package.PackageId, package.Version, packageContent);
     }

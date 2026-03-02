@@ -5,7 +5,6 @@ public class PackageTypeLocatorTests
     [Fact]
     public async Task Locate_FindsAssemblyForKnownType()
     {
-        // Arrange
         var cacheRoot = Path.Combine(Path.GetTempPath(), "nupeek-tests", Guid.NewGuid().ToString("N"));
         var acquirer = new NuGetPackageAcquirer();
         var locator = new PackageTypeLocator();
@@ -13,14 +12,8 @@ public class PackageTypeLocatorTests
         try
         {
             var package = await acquirer.AcquireAsync(new NuGetPackageRequest("Humanizer.Core", "2.14.1", cacheRoot));
+            var result = await locator.LocateAsync(new PackageContentRequest(package.ExtractedPath, "Humanizer.StringHumanizeExtensions", "netstandard2.0"));
 
-            // Act
-            var result = locator.Locate(new PackageContentRequest(
-                package.ExtractedPath,
-                "Humanizer.StringHumanizeExtensions",
-                "netstandard2.0"));
-
-            // Assert
             Assert.Equal("netstandard2.0", result.SelectedTfm);
             Assert.True(File.Exists(result.AssemblyPath));
         }
@@ -36,7 +29,6 @@ public class PackageTypeLocatorTests
     [Fact]
     public async Task Locate_ThrowsForMissingTfm()
     {
-        // Arrange
         var cacheRoot = Path.Combine(Path.GetTempPath(), "nupeek-tests", Guid.NewGuid().ToString("N"));
         var acquirer = new NuGetPackageAcquirer();
         var locator = new PackageTypeLocator();
@@ -45,9 +37,8 @@ public class PackageTypeLocatorTests
         {
             var package = await acquirer.AcquireAsync(new NuGetPackageRequest("Humanizer.Core", "2.14.1", cacheRoot));
 
-            // Act & Assert
-            Assert.Throws<InvalidOperationException>(() =>
-                locator.Locate(new PackageContentRequest(package.ExtractedPath, "Humanizer.StringHumanizeExtensions", "net9.0")));
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await locator.LocateAsync(new PackageContentRequest(package.ExtractedPath, "Humanizer.StringHumanizeExtensions", "net9.0")).ConfigureAwait(true));
         }
         finally
         {
