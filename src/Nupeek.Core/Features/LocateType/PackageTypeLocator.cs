@@ -8,10 +8,47 @@ namespace Nupeek.Core;
 /// </summary>
 public sealed class PackageTypeLocator
 {
+    private const int ScanConcurrency = 4;
+
+    /// <summary>
+    /// Lists all type names available in a local assembly.
+    /// </summary>
+    public async Task<IReadOnlyList<string>> ListTypesInAssemblyAsync(string assemblyPath, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(assemblyPath);
+
+        if (!File.Exists(assemblyPath))
+        {
+            throw new InvalidOperationException($"Assembly was not found: {assemblyPath}");
+        }
+
+        var types = await ReadTypeNamesFromAssemblyAsync(assemblyPath, cancellationToken).ConfigureAwait(false);
+        return types
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(static x => x, StringComparer.Ordinal)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Lists all type names available in a package lib directory for selected TFM.
+    /// </summary>
+    public async Task<IReadOnlyList<string>> ListTypesInPackageAsync(string extractedPath, string? tfm, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(extractedPath);
+
+        var selectedLibDir = SelectLibraryDirectory(extractedPath, tfm);
+        var types = await ReadTypeNamesFromDirectoryAsync(selectedLibDir, cancellationToken).ConfigureAwait(false);
+
+        return types
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(static x => x, StringComparer.Ordinal)
+            .ToList();
+    }
+
     /// <summary>
     /// Locates target type directly inside a specific assembly path.
     /// </summary>
-    public PackageContentResult LocateInAssembly(string assemblyPath, string fullTypeName)
+    public async Task<PackageContentResult> LocateInAssemblyAsync(string assemblyPath, string fullTypeName, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(assemblyPath);
         ArgumentException.ThrowIfNullOrWhiteSpace(fullTypeName);
@@ -24,14 +61,25 @@ public sealed class PackageTypeLocator
         var normalizedType = TypeNameNormalizer.Normalize(fullTypeName);
         var dir = Path.GetDirectoryName(Path.GetFullPath(assemblyPath)) ?? ".";
 
-        var exact = FindTypeInSingleAssembly(assemblyPath, normalizedType);
+        var exact = await FindTypeInSingleAssemblyAsync(assemblyPath, normalizedType, cancellationToken).ConfigureAwait(false);
         if (!string.IsNullOrWhiteSpace(exact))
         {
             return new PackageContentResult("assembly", dir, assemblyPath, exact);
         }
 
+        var fuzzy = await FindTypeCandidatesInAssemblyAsync(assemblyPath, normalizedType, cancellationToken).ConfigureAwait(false);
+        if (fuzzy.Count == 1)
+        {
+            return new PackageContentResult("assembly", dir, assemblyPath, fuzzy[0]);
+        }
+
+        if (fuzzy.Count > 1)
+        {
+            throw BuildAmbiguousTypeException(normalizedType, assemblyPath, fuzzy);
+        }
+
         var memberName = SymbolParser.ExtractMemberName(fullTypeName);
-        var memberTypes = FindDeclaringTypesForMemberNameInAssembly(assemblyPath, memberName);
+        var memberTypes = await FindDeclaringTypesForMemberNameInAssemblyAsync(assemblyPath, memberName, cancellationToken).ConfigureAwait(false);
 
         if (memberTypes.Count == 1)
         {
@@ -42,16 +90,16 @@ public sealed class PackageTypeLocator
         {
             var suggestions = string.Join(", ", memberTypes.OrderBy(static x => x, StringComparer.Ordinal).Take(5));
             throw new InvalidOperationException(
-                $"Type '{normalizedType}' was not found in '{assemblyPath}'. Found member '{memberName}' in multiple types: {suggestions}. Use --type with a fully-qualified type name.");
+                $"Type '{normalizedType}' was not found in '{assemblyPath}'. Found member '{memberName}' in multiple types: {suggestions}. Use --type with a fully-qualified type name. Try 'nupeek list --assembly {assemblyPath}'.");
         }
 
-        throw new InvalidOperationException($"Type '{normalizedType}' was not found in '{assemblyPath}'.");
+        throw new InvalidOperationException($"Type '{normalizedType}' was not found in '{assemblyPath}'. Try 'nupeek list --assembly {assemblyPath}'.");
     }
 
     /// <summary>
     /// Locates package content (TFM/lib/assembly) for the requested type.
     /// </summary>
-    public PackageContentResult Locate(PackageContentRequest request)
+    public async Task<PackageContentResult> LocateAsync(PackageContentRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(request.ExtractedPath);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.FullTypeName);
@@ -60,19 +108,38 @@ public sealed class PackageTypeLocator
         var selectedLibDir = SelectLibraryDirectory(request.ExtractedPath, request.Tfm);
         var selectedTfm = Path.GetFileName(selectedLibDir);
 
-        var exact = FindExactType(selectedLibDir, requestedTypeName);
+        var exact = await FindExactTypeAsync(selectedLibDir, requestedTypeName, cancellationToken).ConfigureAwait(false);
         if (exact is not null)
         {
             return new PackageContentResult(selectedTfm, selectedLibDir, exact.Value.AssemblyPath, exact.Value.TypeName);
         }
 
-        return ResolveByMemberFallback(request.FullTypeName, requestedTypeName, selectedLibDir, selectedTfm);
+        var fuzzy = await FindTypeCandidatesInDirectoryAsync(selectedLibDir, requestedTypeName, cancellationToken).ConfigureAwait(false);
+        if (fuzzy.Count == 1)
+        {
+            var hit = fuzzy[0];
+            return new PackageContentResult(selectedTfm, selectedLibDir, hit.AssemblyPath, hit.TypeName);
+        }
+
+        if (fuzzy.Count > 1)
+        {
+            throw BuildAmbiguousTypeException(requestedTypeName, selectedLibDir, fuzzy.Select(static x => x.TypeName));
+        }
+
+        return await ResolveByMemberFallbackAsync(request.FullTypeName, requestedTypeName, selectedLibDir, selectedTfm, cancellationToken).ConfigureAwait(false);
     }
 
-    private static PackageContentResult ResolveByMemberFallback(string originalSymbol, string requestedTypeName, string selectedLibDir, string selectedTfm)
+    private static InvalidOperationException BuildAmbiguousTypeException(string requestedTypeName, string location, IEnumerable<string> candidates)
+    {
+        var suggestions = string.Join(", ", candidates.Distinct(StringComparer.Ordinal).OrderBy(static x => x, StringComparer.Ordinal).Take(5));
+        return new InvalidOperationException(
+            $"Type '{requestedTypeName}' was ambiguous in '{location}'. Candidates: {suggestions}. Use --type with full namespace.");
+    }
+
+    private static async Task<PackageContentResult> ResolveByMemberFallbackAsync(string originalSymbol, string requestedTypeName, string selectedLibDir, string selectedTfm, CancellationToken cancellationToken)
     {
         var memberName = SymbolParser.ExtractMemberName(originalSymbol);
-        var candidateTypes = FindDeclaringTypesForMemberName(selectedLibDir, memberName);
+        var candidateTypes = await FindDeclaringTypesForMemberNameAsync(selectedLibDir, memberName, cancellationToken).ConfigureAwait(false);
 
         if (candidateTypes.Count == 1)
         {
@@ -90,10 +157,10 @@ public sealed class PackageTypeLocator
                     .Take(5));
 
             throw new InvalidOperationException(
-                $"Type '{requestedTypeName}' was not found in '{selectedLibDir}'. Found member '{memberName}' in multiple types: {suggestions}. Use --type with a fully-qualified type name.");
+                $"No type named '{requestedTypeName}' found in '{selectedLibDir}'. Found member '{memberName}' in multiple types: {suggestions}. Use --type with a fully-qualified type name. Try 'nupeek list --package <id>'.");
         }
 
-        throw new InvalidOperationException($"Type '{requestedTypeName}' was not found in '{selectedLibDir}'.");
+        throw new InvalidOperationException($"No type named '{requestedTypeName}' found in '{selectedLibDir}'. Try 'nupeek list --package <id>' to inspect available types.");
     }
 
     private static string SelectLibraryDirectory(string extractedPath, string? tfm)
@@ -128,164 +195,194 @@ public sealed class PackageTypeLocator
         return selectedLibDir;
     }
 
-    private static (string AssemblyPath, string TypeName)? FindExactType(string libDir, string fullTypeName)
+    private static async Task<(string AssemblyPath, string TypeName)?> FindExactTypeAsync(string libDir, string fullTypeName, CancellationToken cancellationToken)
     {
-        foreach (var dll in Directory.GetFiles(libDir, "*.dll"))
-        {
-            try
+        var hits = await RunBoundedAsync<string, (string dll, string hit)?>(
+            Directory.GetFiles(libDir, "*.dll"),
+            async dll =>
             {
-                using var stream = File.OpenRead(dll);
-                using var peReader = new PEReader(stream);
+                var hit = await FindTypeInSingleAssemblyAsync(dll, fullTypeName, cancellationToken).ConfigureAwait(false);
+                return string.IsNullOrWhiteSpace(hit) ? null : (dll, hit);
+            },
+            cancellationToken).ConfigureAwait(false);
 
-                if (!peReader.HasMetadata)
-                {
-                    continue;
-                }
-
-                var md = peReader.GetMetadataReader();
-                foreach (var handle in md.TypeDefinitions)
-                {
-                    var typeName = GetTypeFullName(md, handle);
-                    if (string.Equals(typeName, fullTypeName, StringComparison.Ordinal))
-                    {
-                        return (dll, typeName);
-                    }
-                }
-            }
-            catch
-            {
-                // Ignore unreadable/unmanaged assemblies and continue scanning.
-            }
-        }
-
-        return null;
+        return hits
+            .Where(static x => x is not null)
+            .Select(static x => x!.Value)
+            .OrderBy(static x => x.dll, StringComparer.Ordinal)
+            .Select(static x => (AssemblyPath: x.dll, TypeName: x.hit))
+            .FirstOrDefault();
     }
 
-    private static List<(string AssemblyPath, string TypeName)> FindDeclaringTypesForMemberName(string libDir, string memberName)
+    private static async Task<List<(string AssemblyPath, string TypeName)>> FindTypeCandidatesInDirectoryAsync(string libDir, string requestedTypeName, CancellationToken cancellationToken)
     {
-        var matches = new List<(string AssemblyPath, string TypeName)>();
+        var all = await RunBoundedAsync(
+            Directory.GetFiles(libDir, "*.dll"),
+            async dll => (await FindTypeCandidatesInAssemblyAsync(dll, requestedTypeName, cancellationToken).ConfigureAwait(false))
+                .Select(type => (AssemblyPath: dll, TypeName: type))
+                .ToList(),
+            cancellationToken).ConfigureAwait(false);
 
-        foreach (var dll in Directory.GetFiles(libDir, "*.dll"))
-        {
-            try
-            {
-                using var stream = File.OpenRead(dll);
-                using var peReader = new PEReader(stream);
-
-                if (!peReader.HasMetadata)
-                {
-                    continue;
-                }
-
-                var md = peReader.GetMetadataReader();
-
-                foreach (var handle in md.TypeDefinitions)
-                {
-                    var typeDef = md.GetTypeDefinition(handle);
-                    var typeName = GetTypeFullName(md, handle);
-
-                    if (HasMethod(typeDef, md, memberName)
-                        || HasProperty(typeDef, md, memberName)
-                        || HasField(typeDef, md, memberName)
-                        || HasEvent(typeDef, md, memberName))
-                    {
-                        matches.Add((dll, typeName));
-                    }
-                }
-            }
-            catch
-            {
-                // Ignore unreadable/unmanaged assemblies and continue scanning.
-            }
-        }
-
-        return matches
+        return all.SelectMany(static x => x)
             .DistinctBy(static x => (x.AssemblyPath, x.TypeName))
             .ToList();
     }
 
-    private static bool HasMethod(TypeDefinition typeDef, MetadataReader md, string memberName)
-        => typeDef.GetMethods()
-            .Select(md.GetMethodDefinition)
-            .Any(method => string.Equals(md.GetString(method.Name), memberName, StringComparison.Ordinal));
-
-    private static bool HasProperty(TypeDefinition typeDef, MetadataReader md, string memberName)
-        => typeDef.GetProperties()
-            .Select(md.GetPropertyDefinition)
-            .Any(property => string.Equals(md.GetString(property.Name), memberName, StringComparison.Ordinal));
-
-    private static bool HasField(TypeDefinition typeDef, MetadataReader md, string memberName)
-        => typeDef.GetFields()
-            .Select(md.GetFieldDefinition)
-            .Any(field => string.Equals(md.GetString(field.Name), memberName, StringComparison.Ordinal));
-
-    private static bool HasEvent(TypeDefinition typeDef, MetadataReader md, string memberName)
-        => typeDef.GetEvents()
-            .Select(md.GetEventDefinition)
-            .Any(eventDef => string.Equals(md.GetString(eventDef.Name), memberName, StringComparison.Ordinal));
-
-    private static string? FindTypeInSingleAssembly(string assemblyPath, string fullTypeName)
+    private static async Task<List<string>> FindTypeCandidatesInAssemblyAsync(string assemblyPath, string requestedTypeName, CancellationToken cancellationToken)
     {
-        try
-        {
-            using var stream = File.OpenRead(assemblyPath);
-            using var peReader = new PEReader(stream);
+        var requestedToken = requestedTypeName.Split('.').Last();
+        var types = await ReadTypeNamesFromAssemblyAsync(assemblyPath, cancellationToken).ConfigureAwait(false);
 
-            if (!peReader.HasMetadata)
-            {
-                return null;
-            }
-
-            var md = peReader.GetMetadataReader();
-            foreach (var handle in md.TypeDefinitions)
-            {
-                var typeName = GetTypeFullName(md, handle);
-                if (string.Equals(typeName, fullTypeName, StringComparison.Ordinal))
-                {
-                    return typeName;
-                }
-            }
-        }
-        catch
-        {
-            // fall through
-        }
-
-        return null;
+        return types
+            .Where(type => IsTypeCandidate(type, requestedTypeName, requestedToken))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
     }
 
-    private static List<string> FindDeclaringTypesForMemberNameInAssembly(string assemblyPath, string memberName)
+    private static bool IsTypeCandidate(string candidate, string requestedTypeName, string requestedToken)
     {
-        var result = new List<string>();
-
-        try
+        if (string.Equals(candidate, requestedTypeName, StringComparison.Ordinal))
         {
-            using var stream = File.OpenRead(assemblyPath);
-            using var peReader = new PEReader(stream);
-            if (!peReader.HasMetadata)
-            {
-                return result;
-            }
+            return true;
+        }
 
-            var md = peReader.GetMetadataReader();
-            foreach (var handle in md.TypeDefinitions)
+        var typeName = candidate.Split('.').Last();
+        return string.Equals(typeName, requestedToken, StringComparison.Ordinal)
+               || typeName.StartsWith(requestedToken, StringComparison.OrdinalIgnoreCase)
+               || candidate.StartsWith(requestedTypeName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static async Task<List<(string AssemblyPath, string TypeName)>> FindDeclaringTypesForMemberNameAsync(string libDir, string memberName, CancellationToken cancellationToken)
+    {
+        var all = await RunBoundedAsync(
+            Directory.GetFiles(libDir, "*.dll"),
+            dll => FindDeclaringTypesForMemberNameInAssemblyWithPathAsync(dll, memberName, cancellationToken),
+            cancellationToken).ConfigureAwait(false);
+
+        return all.SelectMany(static x => x)
+            .DistinctBy(static x => (x.AssemblyPath, x.TypeName))
+            .ToList();
+    }
+
+    private static async Task<List<(string AssemblyPath, string TypeName)>> FindDeclaringTypesForMemberNameInAssemblyWithPathAsync(string assemblyPath, string memberName, CancellationToken cancellationToken)
+    {
+        var result = new List<(string AssemblyPath, string TypeName)>();
+        var types = await ReadTypeMetadataAsync(assemblyPath, cancellationToken).ConfigureAwait(false);
+
+        foreach (var type in types)
+        {
+            if (type.MemberNames.Contains(memberName, StringComparer.Ordinal))
             {
-                var typeDef = md.GetTypeDefinition(handle);
-                if (HasMethod(typeDef, md, memberName)
-                    || HasProperty(typeDef, md, memberName)
-                    || HasField(typeDef, md, memberName)
-                    || HasEvent(typeDef, md, memberName))
+                result.Add((assemblyPath, type.FullTypeName));
+            }
+        }
+
+        return result;
+    }
+
+    private static async Task<string?> FindTypeInSingleAssemblyAsync(string assemblyPath, string fullTypeName, CancellationToken cancellationToken)
+        => (await ReadTypeNamesFromAssemblyAsync(assemblyPath, cancellationToken).ConfigureAwait(false))
+            .FirstOrDefault(type => string.Equals(type, fullTypeName, StringComparison.Ordinal));
+
+    private static async Task<List<string>> FindDeclaringTypesForMemberNameInAssemblyAsync(string assemblyPath, string memberName, CancellationToken cancellationToken)
+    {
+        var types = await ReadTypeMetadataAsync(assemblyPath, cancellationToken).ConfigureAwait(false);
+        return types
+            .Where(x => x.MemberNames.Contains(memberName, StringComparer.Ordinal))
+            .Select(x => x.FullTypeName)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+    }
+
+    private static async Task<List<string>> ReadTypeNamesFromDirectoryAsync(string libDir, CancellationToken cancellationToken)
+    {
+        var all = await RunBoundedAsync(
+            Directory.GetFiles(libDir, "*.dll"),
+            dll => ReadTypeNamesFromAssemblyAsync(dll, cancellationToken),
+            cancellationToken).ConfigureAwait(false);
+
+        return all.SelectMany(static x => x)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+    }
+
+    private static async Task<List<string>> ReadTypeNamesFromAssemblyAsync(string assemblyPath, CancellationToken cancellationToken)
+        => (await ReadTypeMetadataAsync(assemblyPath, cancellationToken).ConfigureAwait(false))
+            .Select(static x => x.FullTypeName)
+            .ToList();
+
+    private static Task<List<TypeMetadata>> ReadTypeMetadataAsync(string assemblyPath, CancellationToken cancellationToken)
+        => Task.Run(() =>
+        {
+            var result = new List<TypeMetadata>();
+
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                using var stream = new FileStream(assemblyPath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.Asynchronous | FileOptions.SequentialScan);
+                using var peReader = new PEReader(stream);
+
+                if (!peReader.HasMetadata)
                 {
-                    result.Add(GetTypeFullName(md, handle));
+                    return result;
+                }
+
+                var md = peReader.GetMetadataReader();
+                foreach (var handle in md.TypeDefinitions)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var typeDef = md.GetTypeDefinition(handle);
+                    var fullTypeName = GetTypeFullName(md, handle);
+                    var members = new HashSet<string>(StringComparer.Ordinal);
+
+                    foreach (var method in typeDef.GetMethods().Select(md.GetMethodDefinition))
+                    {
+                        members.Add(md.GetString(method.Name));
+                    }
+
+                    foreach (var property in typeDef.GetProperties().Select(md.GetPropertyDefinition))
+                    {
+                        members.Add(md.GetString(property.Name));
+                    }
+
+                    foreach (var field in typeDef.GetFields().Select(md.GetFieldDefinition))
+                    {
+                        members.Add(md.GetString(field.Name));
+                    }
+
+                    foreach (var eventDef in typeDef.GetEvents().Select(md.GetEventDefinition))
+                    {
+                        members.Add(md.GetString(eventDef.Name));
+                    }
+
+                    result.Add(new TypeMetadata(fullTypeName, members));
                 }
             }
-        }
-        catch
-        {
-            // fall through
-        }
+            catch
+            {
+                // swallow unreadable binaries for resilience
+            }
 
-        return result.Distinct(StringComparer.Ordinal).ToList();
+            return result;
+        }, cancellationToken);
+
+    private static async Task<List<TResult>> RunBoundedAsync<TInput, TResult>(IEnumerable<TInput> items, Func<TInput, Task<TResult>> worker, CancellationToken cancellationToken)
+    {
+        using var gate = new SemaphoreSlim(ScanConcurrency);
+        var tasks = items.Select(async item =>
+        {
+            await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                return await worker(item).ConfigureAwait(false);
+            }
+            finally
+            {
+                gate.Release();
+            }
+        });
+
+        return (await Task.WhenAll(tasks).ConfigureAwait(false)).ToList();
     }
 
     private static string GetTypeFullName(MetadataReader md, TypeDefinitionHandle handle)
@@ -295,4 +392,6 @@ public sealed class PackageTypeLocator
         var name = md.GetString(typeDef.Name);
         return string.IsNullOrEmpty(ns) ? name : $"{ns}.{name}";
     }
+
+    private sealed record TypeMetadata(string FullTypeName, HashSet<string> MemberNames);
 }

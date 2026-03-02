@@ -1,4 +1,5 @@
 using System.CommandLine;
+using System.CommandLine.Parsing;
 
 namespace Nupeek.Cli;
 
@@ -33,13 +34,7 @@ public static class CliApp
             var parseResult = root.Parse(args);
             if (parseResult.Errors.Count > 0)
             {
-                foreach (var error in parseResult.Errors)
-                {
-                    Console.Error.WriteLine(error.Message);
-                }
-
-                Console.Error.WriteLine("Run 'nupeek --help' for usage.");
-                return ExitCodes.InvalidArguments;
+                return HandleParseErrors(parseResult, args);
             }
 
             Environment.ExitCode = ExitCodes.Success;
@@ -97,7 +92,8 @@ public static class CliApp
         root.Description += Environment.NewLine + Environment.NewLine +
             "Command options:" + Environment.NewLine +
             "  type: (--package|-p <id> | --assembly <dll>) --type --out [--version] [--tfm] [--format text|json] [--emit files|agent] [--max-chars N]" + Environment.NewLine +
-            "  find: (--package|-p <id> | --assembly <dll>) --symbol --out [--version] [--tfm] [--format text|json] [--emit files|agent] [--max-chars N]" + Environment.NewLine + Environment.NewLine +
+            "  find: (--package|-p <id> | --assembly <dll>) --symbol --out [--version] [--tfm] [--format text|json] [--emit files|agent] [--max-chars N]" + Environment.NewLine +
+            "  list: (--package|-p <id> | --assembly <dll>) [--version] [--tfm] [--query text] [--format text|json]" + Environment.NewLine + Environment.NewLine +
             "Tip:" + Environment.NewLine +
             "  Run 'nupeek <command> --help' to see full per-command options." + Environment.NewLine + Environment.NewLine +
             "Examples:" + Environment.NewLine +
@@ -106,12 +102,45 @@ public static class CliApp
             "  nupeek type --package Polly --type Polly.Policy --out deps-src --format json --emit agent --max-chars 4000 --dry-run false" + Environment.NewLine +
             "  nupeek find --package Polly --symbol Polly.Policy.Handle --out deps-src" + Environment.NewLine +
             "  nupeek find --package Dapper --symbol Dapper.SqlMapper.Query --out deps-src --progress never" + Environment.NewLine +
-            "  nupeek type --assembly ./bin/Debug/net8.0/MyApp.Services.dll --type MyApp.Services.RetryHelper --out deps-src";
+            "  nupeek type --assembly ./bin/Debug/net8.0/MyApp.Services.dll --type MyApp.Services.RetryHelper --out deps-src" + Environment.NewLine +
+            "  nupeek list --assembly ./bin/Debug/net8.0/MyApp.Services.dll --query Retry --format text";
 
         root.AddCommand(TypeCommandFactory.Create(globalOptions, request => RunPlanHandler.RunAsync(request, cancellationToken)));
         root.AddCommand(FindCommandFactory.Create(globalOptions, request => RunPlanHandler.RunAsync(request, cancellationToken)));
+        root.AddCommand(ListCommandFactory.Create(cancellationToken));
 
         return root;
+    }
+
+    private static int HandleParseErrors(ParseResult parseResult, string[] args)
+    {
+        foreach (var error in parseResult.Errors)
+        {
+            Console.Error.WriteLine(error.Message);
+        }
+
+        if (IsLikelyMissingSubcommand(args))
+        {
+            Console.Error.WriteLine("Did you forget a subcommand? Try: nupeek type --assembly <path-to.dll> --type <Namespace.Type> --out deps-src");
+        }
+
+        Console.Error.WriteLine("Run 'nupeek --help' for usage.");
+        return ExitCodes.InvalidArguments;
+    }
+
+    private static bool IsLikelyMissingSubcommand(string[] args)
+    {
+        if (args.Length == 0)
+        {
+            return false;
+        }
+
+        if (args[0] is "type" or "find" or "list")
+        {
+            return false;
+        }
+
+        return args.Any(static x => x is "--package" or "-p" or "--assembly" or "--type" or "--symbol");
     }
 
     /// <summary>
