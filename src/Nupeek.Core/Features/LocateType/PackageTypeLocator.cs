@@ -192,20 +192,23 @@ public sealed class PackageTypeLocator
 
     private static (string AssemblyPath, string TypeName)? FindExactType(string libDir, string fullTypeName)
     {
-        foreach (var dll in Directory.GetFiles(libDir, "*.dll"))
-        {
-            var hit = FindTypeInSingleAssembly(dll, fullTypeName);
-            if (!string.IsNullOrWhiteSpace(hit))
-            {
-                return (dll, hit);
-            }
-        }
+        var hits = Directory.GetFiles(libDir, "*.dll")
+            .AsParallel()
+            .WithDegreeOfParallelism(4)
+            .Select(dll => (AssemblyPath: dll, TypeName: FindTypeInSingleAssembly(dll, fullTypeName)))
+            .Where(static x => !string.IsNullOrWhiteSpace(x.TypeName))
+            .Select(static x => (x.AssemblyPath, x.TypeName!))
+            .ToList();
 
-        return null;
+        return hits
+            .OrderBy(static x => x.AssemblyPath, StringComparer.Ordinal)
+            .FirstOrDefault();
     }
 
     private static List<(string AssemblyPath, string TypeName)> FindTypeCandidatesInDirectory(string libDir, string requestedTypeName)
         => Directory.GetFiles(libDir, "*.dll")
+            .AsParallel()
+            .WithDegreeOfParallelism(4)
             .SelectMany(dll => FindTypeCandidatesInAssembly(dll, requestedTypeName)
                 .Select(type => (AssemblyPath: dll, TypeName: type)))
             .DistinctBy(static x => (x.AssemblyPath, x.TypeName))
@@ -235,46 +238,45 @@ public sealed class PackageTypeLocator
     }
 
     private static List<(string AssemblyPath, string TypeName)> FindDeclaringTypesForMemberName(string libDir, string memberName)
-    {
-        var matches = new List<(string AssemblyPath, string TypeName)>();
-
-        foreach (var dll in Directory.GetFiles(libDir, "*.dll"))
-        {
-            try
-            {
-                using var stream = File.OpenRead(dll);
-                using var peReader = new PEReader(stream);
-
-                if (!peReader.HasMetadata)
-                {
-                    continue;
-                }
-
-                var md = peReader.GetMetadataReader();
-
-                foreach (var handle in md.TypeDefinitions)
-                {
-                    var typeDef = md.GetTypeDefinition(handle);
-                    var typeName = GetTypeFullName(md, handle);
-
-                    if (HasMethod(typeDef, md, memberName)
-                        || HasProperty(typeDef, md, memberName)
-                        || HasField(typeDef, md, memberName)
-                        || HasEvent(typeDef, md, memberName))
-                    {
-                        matches.Add((dll, typeName));
-                    }
-                }
-            }
-            catch
-            {
-                // Ignore unreadable/unmanaged assemblies and continue scanning.
-            }
-        }
-
-        return matches
+        => Directory.GetFiles(libDir, "*.dll")
+            .AsParallel()
+            .WithDegreeOfParallelism(4)
+            .SelectMany(dll => FindDeclaringTypesForMemberNameInAssemblyWithPath(dll, memberName))
             .DistinctBy(static x => (x.AssemblyPath, x.TypeName))
             .ToList();
+
+    private static List<(string AssemblyPath, string TypeName)> FindDeclaringTypesForMemberNameInAssemblyWithPath(string assemblyPath, string memberName)
+    {
+        var result = new List<(string AssemblyPath, string TypeName)>();
+
+        try
+        {
+            using var stream = File.OpenRead(assemblyPath);
+            using var peReader = new PEReader(stream);
+            if (!peReader.HasMetadata)
+            {
+                return result;
+            }
+
+            var md = peReader.GetMetadataReader();
+            foreach (var handle in md.TypeDefinitions)
+            {
+                var typeDef = md.GetTypeDefinition(handle);
+                if (HasMethod(typeDef, md, memberName)
+                    || HasProperty(typeDef, md, memberName)
+                    || HasField(typeDef, md, memberName)
+                    || HasEvent(typeDef, md, memberName))
+                {
+                    result.Add((assemblyPath, GetTypeFullName(md, handle)));
+                }
+            }
+        }
+        catch
+        {
+            // fall through
+        }
+
+        return result;
     }
 
     private static bool HasMethod(TypeDefinition typeDef, MetadataReader md, string memberName)
@@ -337,6 +339,8 @@ public sealed class PackageTypeLocator
 
     private static IEnumerable<string> ReadTypeNamesFromDirectory(string libDir)
         => Directory.GetFiles(libDir, "*.dll")
+            .AsParallel()
+            .WithDegreeOfParallelism(4)
             .SelectMany(ReadTypeNamesFromAssembly)
             .Distinct(StringComparer.Ordinal);
 
