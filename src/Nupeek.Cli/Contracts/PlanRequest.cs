@@ -2,7 +2,8 @@ namespace Nupeek.Cli;
 
 internal sealed record PlanRequest(
     string Command,
-    string Package,
+    string? Package,
+    string? Assembly,
     string Version,
     string Tfm,
     string Type,

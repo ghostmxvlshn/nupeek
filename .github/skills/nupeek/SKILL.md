@@ -24,7 +24,9 @@ Skip this skill when:
 
 ## Workflow
 
-1. Resolve package name + version from project files/lock data.
+1. Resolve source input. Prefer **assembly mode** when possible (this is usually best in real projects):
+   - if the dependency DLL already exists in `bin/`, `obj/`, `.nuget/packages`, or project artifacts, use `--assembly`
+   - fall back to `--package` only when assembly path is unavailable
 
 2. If the user asks about a **method implementation**, inspect local code usage first:
    - find where the method is called in the current codebase
@@ -36,22 +38,30 @@ Skip this skill when:
 rg -n "WaitAndRetry\(" .
 ```
 
-3. Run Nupeek for the exact type first (narrow scope):
+3. Run Nupeek for the exact type first (narrow scope), preferring assembly input:
 
 ```bash
+# Preferred in ~99% of real tasks (assembly already present locally)
+nupeek type --assembly <path-to.dll> --type <Namespace.Type> --out deps-src
+
+# Fallback when assembly path is not available
 nupeek type --package <PackageId> --type <Namespace.Type> --out deps-src
 ```
 
 4. If the type is unknown, discover candidates from member/type symbol:
 
 ```bash
+# Preferred
+nupeek find --assembly <path-to.dll> --symbol <Namespace.TypeOrMember> --out deps-src
+
+# Fallback
 nupeek find --package <PackageId> --symbol <Namespace.TypeOrMember> --out deps-src
 ```
 
 5. If `find` returns multiple candidates for a member, choose one declaring type and rerun `type`:
 
 ```bash
-nupeek type --package <PackageId> --type <Resolved.Namespace.Type> --out deps-src
+nupeek type --assembly <path-to.dll> --type <Resolved.Namespace.Type> --out deps-src
 ```
 
 6. Choose output mode based on task:
@@ -85,6 +95,8 @@ When using Nupeek, report:
 
 ## CLI Options to Use Intentionally
 
+- `--assembly <path-to.dll>` → preferred source when dependency assembly already exists locally
+- `--package <id>` (+ optional `--version`) → fallback source when assembly path is unavailable
 - `--format text|json` → human vs machine-readable output
 - `--emit files|agent` → files-first vs inline agent payload
 - `--max-chars <n>` → inline source cap for `--emit agent`

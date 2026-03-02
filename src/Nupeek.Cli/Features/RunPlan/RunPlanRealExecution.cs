@@ -13,6 +13,7 @@ internal static class RunPlanRealExecution
             var pipeline = new TypeDecompilePipeline();
             var result = await pipeline.RunAsync(new TypeDecompileRequest(
                 request.Package,
+                request.Assembly,
                 string.Equals(request.Version, "latest", StringComparison.OrdinalIgnoreCase) ? null : request.Version,
                 string.Equals(request.Tfm, "auto", StringComparison.OrdinalIgnoreCase) ? null : request.Tfm,
                 normalizedType,
@@ -39,19 +40,19 @@ internal static class RunPlanRealExecution
         }
         catch (OperationCanceledException)
         {
-            return new CliOutcome(ExitCodes.OperationCanceled, "Operation canceled.", request.Package, request.Version, request.Tfm, null, null, null, null, null, null, null, false);
+            return new CliOutcome(ExitCodes.OperationCanceled, "Operation canceled.", RunPlanSourceLabel.Get(request), request.Version, request.Tfm, null, null, null, null, null, null, null, false);
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
         {
-            return new CliOutcome(ExitCodes.TypeOrSymbolNotFound, ex.Message, request.Package, request.Version, request.Tfm, null, null, null, null, null, null, null, false);
+            return new CliOutcome(ExitCodes.TypeOrSymbolNotFound, ex.Message, RunPlanSourceLabel.Get(request), request.Version, request.Tfm, null, null, null, null, null, null, null, false);
         }
         catch (InvalidOperationException ex)
         {
-            return new CliOutcome(ExitCodes.PackageResolutionFailure, ex.Message, request.Package, request.Version, request.Tfm, null, null, null, null, null, null, null, false);
+            return new CliOutcome(ExitCodes.PackageResolutionFailure, ex.Message, RunPlanSourceLabel.Get(request), request.Version, request.Tfm, null, null, null, null, null, null, null, false);
         }
         catch (Exception ex)
         {
-            return new CliOutcome(ExitCodes.DecompilationFailure, $"Decompilation failed: {ex.Message}", request.Package, request.Version, request.Tfm, null, null, null, null, null, null, null, false);
+            return new CliOutcome(ExitCodes.DecompilationFailure, $"Decompilation failed: {ex.Message}", RunPlanSourceLabel.Get(request), request.Version, request.Tfm, null, null, null, null, null, null, null, false);
         }
     }
 }

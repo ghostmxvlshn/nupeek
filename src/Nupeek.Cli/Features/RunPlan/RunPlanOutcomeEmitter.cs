@@ -65,7 +65,7 @@ internal static class RunPlanOutcomeEmitter
     {
         Console.WriteLine(RunPlanTextBuilder.Build(
             request.Command,
-            request.Package,
+RunPlanSourceLabel.Get(request),
             request.Version,
             request.Tfm,
             request.Type,

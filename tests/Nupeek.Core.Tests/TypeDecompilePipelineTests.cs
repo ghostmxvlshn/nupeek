@@ -14,6 +14,7 @@ public class TypeDecompilePipelineTests
             // Act
             var result = await pipeline.RunAsync(new TypeDecompileRequest(
                 "Humanizer.Core",
+                null,
                 "2.14.1",
                 "netstandard2.0",
                 "Humanizer.StringHumanizeExtensions",
