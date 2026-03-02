@@ -47,24 +47,36 @@ public sealed class TypeDecompilePipeline
         var source = await ResolveSourceAsync(request, cancellationToken).ConfigureAwait(false);
         var content = source.Content;
 
-        var outputPath = OutputPathBuilder.BuildTypeOutputPath(
+        var outputPath = await DecompileAndCatalogAsync(
             request.OutputRoot,
             source.PackageId,
             source.Version,
             content.SelectedTfm,
-            content.FullTypeName);
-
-        await _decompiler.DecompileTypeAsync(content.AssemblyPath, content.FullTypeName, outputPath, cancellationToken).ConfigureAwait(false);
-
-        var indexPath = await _catalogWriter.WriteIndexAsync(request.OutputRoot, content.FullTypeName, outputPath, cancellationToken).ConfigureAwait(false);
-        var manifestPath = await _catalogWriter.WriteManifestAsync(request.OutputRoot, new ManifestEntry(
-            source.PackageId,
-            source.Version,
-            content.SelectedTfm,
-            content.FullTypeName,
             content.AssemblyPath,
-            outputPath,
-            DateTimeOffset.UtcNow), cancellationToken).ConfigureAwait(false);
+            content.FullTypeName,
+            cancellationToken).ConfigureAwait(false);
+
+        if (request.Depth > 0)
+        {
+            var related = await _locator
+                .GetRelatedTypesInAssemblyAsync(content.AssemblyPath, content.FullTypeName, request.Depth, cancellationToken)
+                .ConfigureAwait(false);
+
+            foreach (var relatedType in related)
+            {
+                await DecompileAndCatalogAsync(
+                    request.OutputRoot,
+                    source.PackageId,
+                    source.Version,
+                    content.SelectedTfm,
+                    content.AssemblyPath,
+                    relatedType,
+                    cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        var indexPath = Path.Combine(request.OutputRoot, "index.json");
+        var manifestPath = Path.Combine(request.OutputRoot, "manifest.json");
 
         return new TypeDecompileResult(
             source.PackageId,
@@ -104,5 +116,29 @@ public sealed class TypeDecompilePipeline
         var packageContent = await _locator.LocateAsync(new PackageContentRequest(package.ExtractedPath, request.TypeName, request.Tfm), cancellationToken).ConfigureAwait(false);
 
         return (package.PackageId, package.Version, packageContent);
+    }
+
+    private async Task<string> DecompileAndCatalogAsync(
+        string outputRoot,
+        string packageId,
+        string version,
+        string tfm,
+        string assemblyPath,
+        string fullTypeName,
+        CancellationToken cancellationToken)
+    {
+        var outputPath = OutputPathBuilder.BuildTypeOutputPath(outputRoot, packageId, version, tfm, fullTypeName);
+        await _decompiler.DecompileTypeAsync(assemblyPath, fullTypeName, outputPath, cancellationToken).ConfigureAwait(false);
+        await _catalogWriter.WriteIndexAsync(outputRoot, fullTypeName, outputPath, cancellationToken).ConfigureAwait(false);
+        await _catalogWriter.WriteManifestAsync(outputRoot, new ManifestEntry(
+            packageId,
+            version,
+            tfm,
+            fullTypeName,
+            assemblyPath,
+            outputPath,
+            DateTimeOffset.UtcNow), cancellationToken).ConfigureAwait(false);
+
+        return outputPath;
     }
 }

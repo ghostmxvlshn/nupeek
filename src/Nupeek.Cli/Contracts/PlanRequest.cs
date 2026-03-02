@@ -7,6 +7,7 @@ internal sealed record PlanRequest(
     string Version,
     string Tfm,
     string Type,
+    int Depth,
     string OutDir,
     bool Verbose,
     bool Quiet,

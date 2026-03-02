@@ -91,7 +91,7 @@ public static class CliApp
 
         root.Description += Environment.NewLine + Environment.NewLine +
             "Command options:" + Environment.NewLine +
-            "  type: (--package|-p <id> | --assembly <dll>) --type --out [--version] [--tfm] [--format text|json] [--emit files|agent] [--max-chars N]" + Environment.NewLine +
+            "  type: (--package|-p <id> | --assembly <dll>) --type --out [--depth N] [--version] [--tfm] [--format text|json] [--emit files|agent] [--max-chars N]" + Environment.NewLine +
             "  find: (--package|-p <id> | --assembly <dll>) --symbol --out [--version] [--tfm] [--format text|json] [--emit files|agent] [--max-chars N]" + Environment.NewLine +
             "  list: (--package|-p <id> | --assembly <dll>) [--version] [--tfm] [--query text] [--format text|json]" + Environment.NewLine + Environment.NewLine +
             "Tip:" + Environment.NewLine +
@@ -154,6 +154,7 @@ public static class CliApp
         string type,
         string outDir,
         bool dryRun,
-        string? sourceSymbol = null)
-        => RunPlanTextBuilder.Build(command, package, version, tfm, type, outDir, dryRun, sourceSymbol);
+        string? sourceSymbol = null,
+        int depth = 0)
+        => RunPlanTextBuilder.Build(command, package, version, tfm, type, outDir, dryRun, sourceSymbol, depth);
 }

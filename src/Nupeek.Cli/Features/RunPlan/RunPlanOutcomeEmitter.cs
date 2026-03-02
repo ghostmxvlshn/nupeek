@@ -71,7 +71,8 @@ RunPlanSourceLabel.Get(request),
             request.Type,
             request.OutDir,
             request.DryRun,
-            request.SourceSymbol));
+            request.SourceSymbol,
+            request.Depth));
     }
 
     private static void EmitGeneratedPaths(CliOutcome outcome)

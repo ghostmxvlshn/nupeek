@@ -44,6 +44,9 @@ rg -n "WaitAndRetry\(" .
 # Preferred in ~99% of real tasks (assembly already present locally)
 nupeek type --assembly <path-to.dll> --type <Namespace.Type> --out deps-src
 
+# Include directly related types (base + interfaces)
+nupeek type --assembly <path-to.dll> --type <Namespace.Type> --depth 1 --out deps-src
+
 # Fallback when assembly path is not available
 nupeek type --package <PackageId> --type <Namespace.Type> --out deps-src
 ```
@@ -100,6 +103,7 @@ When using Nupeek, report:
 - `--format text|json` → human vs machine-readable output
 - `--emit files|agent` → files-first vs inline agent payload
 - `--max-chars <n>` → inline source cap for `--emit agent`
+- `--depth <n>` → include related types (base/interfaces) when decompiling
 - `--progress auto|always|never` → terminal spinner behavior
 - `--dry-run` → show execution plan without decompiling
 

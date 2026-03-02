@@ -15,6 +15,7 @@ internal static class TypeCommandFactory
         var tfmOption = new Option<string?>("--tfm", "Target framework moniker. Defaults to auto.");
         var typeOption = new Option<string>("--type", "Fully-qualified type name (e.g. Namespace.Type)") { IsRequired = true };
         var outOption = new Option<string>("--out", "Output directory (e.g. deps-src)") { IsRequired = true };
+        var depthOption = new Option<int>("--depth", () => 0, "Related-type expansion depth. 0 = only requested type.");
         var formatOption = new Option<string>("--format", () => "text", "Output format: text (default) or json.");
         var emitOption = new Option<string>("--emit", () => "files", "Emit mode: files (default) or agent.");
         var maxCharsOption = new Option<int>("--max-chars", () => 12000, "Max inline source chars for --emit agent.");
@@ -26,6 +27,7 @@ internal static class TypeCommandFactory
         command.AddOption(tfmOption);
         command.AddOption(typeOption);
         command.AddOption(outOption);
+        command.AddOption(depthOption);
         command.AddOption(formatOption);
         command.AddOption(emitOption);
         command.AddOption(maxCharsOption);
@@ -51,6 +53,7 @@ internal static class TypeCommandFactory
                 Version: parse.GetValueForOption(versionOption) ?? "latest",
                 Tfm: parse.GetValueForOption(tfmOption) ?? "auto",
                 Type: parse.GetValueForOption(typeOption)!,
+                Depth: Math.Max(0, parse.GetValueForOption(depthOption)),
                 OutDir: parse.GetValueForOption(outOption)!,
                 Verbose: parse.GetValueForOption(globalOptions.Verbose),
                 Quiet: parse.GetValueForOption(globalOptions.Quiet),

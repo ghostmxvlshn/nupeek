@@ -333,29 +333,18 @@ public sealed class PackageTypeLocator
                     cancellationToken.ThrowIfCancellationRequested();
                     var typeDef = md.GetTypeDefinition(handle);
                     var fullTypeName = GetTypeFullName(md, handle);
-                    var members = new HashSet<string>(StringComparer.Ordinal);
+                    var members = CollectMemberNames(md, typeDef);
 
-                    foreach (var method in typeDef.GetMethods().Select(md.GetMethodDefinition))
-                    {
-                        members.Add(md.GetString(method.Name));
-                    }
+                    var baseType = ResolveEntityTypeName(md, typeDef.BaseType);
+                    var interfaces = typeDef.GetInterfaceImplementations()
+                        .Select(md.GetInterfaceImplementation)
+                        .Select(x => ResolveEntityTypeName(md, x.Interface))
+                        .Where(static x => !string.IsNullOrWhiteSpace(x))
+                        .Cast<string>()
+                        .Distinct(StringComparer.Ordinal)
+                        .ToList();
 
-                    foreach (var property in typeDef.GetProperties().Select(md.GetPropertyDefinition))
-                    {
-                        members.Add(md.GetString(property.Name));
-                    }
-
-                    foreach (var field in typeDef.GetFields().Select(md.GetFieldDefinition))
-                    {
-                        members.Add(md.GetString(field.Name));
-                    }
-
-                    foreach (var eventDef in typeDef.GetEvents().Select(md.GetEventDefinition))
-                    {
-                        members.Add(md.GetString(eventDef.Name));
-                    }
-
-                    result.Add(new TypeMetadata(fullTypeName, members));
+                    result.Add(new TypeMetadata(fullTypeName, members, baseType, interfaces));
                 }
             }
             catch
@@ -385,6 +374,92 @@ public sealed class PackageTypeLocator
         return (await Task.WhenAll(tasks).ConfigureAwait(false)).ToList();
     }
 
+    public async Task<IReadOnlyList<string>> GetRelatedTypesInAssemblyAsync(
+        string assemblyPath,
+        string rootTypeName,
+        int depth,
+        CancellationToken cancellationToken = default)
+    {
+        if (depth <= 0)
+        {
+            return [];
+        }
+
+        var normalizedRoot = TypeNameNormalizer.Normalize(rootTypeName);
+        var types = await ReadTypeMetadataAsync(assemblyPath, cancellationToken).ConfigureAwait(false);
+        var map = types
+            .GroupBy(static x => x.FullTypeName, StringComparer.Ordinal)
+            .ToDictionary(static g => g.Key, static g => g.First(), StringComparer.Ordinal);
+
+        var visited = new HashSet<string>(StringComparer.Ordinal) { normalizedRoot };
+        var frontier = new HashSet<string>(StringComparer.Ordinal) { normalizedRoot };
+
+        for (var level = 0; level < depth; level++)
+        {
+            var next = new HashSet<string>(StringComparer.Ordinal);
+
+            foreach (var current in frontier)
+            {
+                if (!map.TryGetValue(current, out var meta))
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(meta.BaseType)
+                    && !string.Equals(meta.BaseType, "System.Object", StringComparison.Ordinal)
+                    && map.ContainsKey(meta.BaseType)
+                    && visited.Add(meta.BaseType))
+                {
+                    next.Add(meta.BaseType);
+                }
+
+                foreach (var iface in meta.Interfaces)
+                {
+                    if (map.ContainsKey(iface) && visited.Add(iface))
+                    {
+                        next.Add(iface);
+                    }
+                }
+            }
+
+            frontier = next;
+            if (frontier.Count == 0)
+            {
+                break;
+            }
+        }
+
+        visited.Remove(normalizedRoot);
+        return visited.OrderBy(static x => x, StringComparer.Ordinal).ToList();
+    }
+
+    private static HashSet<string> CollectMemberNames(MetadataReader md, TypeDefinition typeDef)
+    {
+        var members = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var method in typeDef.GetMethods().Select(md.GetMethodDefinition))
+        {
+            members.Add(md.GetString(method.Name));
+        }
+
+        foreach (var property in typeDef.GetProperties().Select(md.GetPropertyDefinition))
+        {
+            members.Add(md.GetString(property.Name));
+        }
+
+        foreach (var field in typeDef.GetFields().Select(md.GetFieldDefinition))
+        {
+            members.Add(md.GetString(field.Name));
+        }
+
+        foreach (var eventDef in typeDef.GetEvents().Select(md.GetEventDefinition))
+        {
+            members.Add(md.GetString(eventDef.Name));
+        }
+
+        return members;
+    }
+
     private static string GetTypeFullName(MetadataReader md, TypeDefinitionHandle handle)
     {
         var typeDef = md.GetTypeDefinition(handle);
@@ -393,5 +468,29 @@ public sealed class PackageTypeLocator
         return string.IsNullOrEmpty(ns) ? name : $"{ns}.{name}";
     }
 
-    private sealed record TypeMetadata(string FullTypeName, HashSet<string> MemberNames);
+    private static string? ResolveEntityTypeName(MetadataReader md, EntityHandle handle)
+    {
+        if (handle.IsNil)
+        {
+            return null;
+        }
+
+        return handle.Kind switch
+        {
+            HandleKind.TypeDefinition => GetTypeFullName(md, (TypeDefinitionHandle)handle),
+            HandleKind.TypeReference => GetTypeFullName(md, (TypeReferenceHandle)handle),
+            HandleKind.TypeSpecification => null,
+            _ => null,
+        };
+    }
+
+    private static string GetTypeFullName(MetadataReader md, TypeReferenceHandle handle)
+    {
+        var typeRef = md.GetTypeReference(handle);
+        var ns = md.GetString(typeRef.Namespace);
+        var name = md.GetString(typeRef.Name);
+        return string.IsNullOrEmpty(ns) ? name : $"{ns}.{name}";
+    }
+
+    private sealed record TypeMetadata(string FullTypeName, HashSet<string> MemberNames, string? BaseType, IReadOnlyList<string> Interfaces);
 }
