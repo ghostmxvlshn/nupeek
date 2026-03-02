@@ -18,6 +18,7 @@ public class TypeDecompilePipelineTests
                 "2.14.1",
                 "netstandard2.0",
                 "Humanizer.StringHumanizeExtensions",
+                0,
                 outputRoot));
 
             // Assert

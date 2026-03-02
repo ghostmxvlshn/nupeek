@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 
 namespace Nupeek.Cli;
@@ -12,7 +13,8 @@ internal static class RunPlanTextBuilder
         string type,
         string outDir,
         bool dryRun,
-        string? sourceSymbol = null)
+        string? sourceSymbol = null,
+        int depth = 0)
     {
         var sb = new StringBuilder();
         sb.AppendLine("Nupeek execution plan");
@@ -27,6 +29,7 @@ internal static class RunPlanTextBuilder
         }
 
         sb.AppendLine($"type: {type}");
+        sb.AppendLine($"depth: {depth.ToString(CultureInfo.InvariantCulture)}");
         sb.AppendLine($"out: {outDir}");
         sb.AppendLine($"dryRun: {dryRun}");
 

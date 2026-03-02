@@ -17,6 +17,7 @@ internal static class RunPlanRealExecution
                 string.Equals(request.Version, "latest", StringComparison.OrdinalIgnoreCase) ? null : request.Version,
                 string.Equals(request.Tfm, "auto", StringComparison.OrdinalIgnoreCase) ? null : request.Tfm,
                 normalizedType,
+                request.Depth,
                 request.OutDir), cancellationToken).ConfigureAwait(false);
 
             var inlineSource = await InlineSourceReader

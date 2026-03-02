@@ -53,6 +53,7 @@ internal static class FindCommandFactory
                 Version: parse.GetValueForOption(versionOption) ?? "latest",
                 Tfm: parse.GetValueForOption(tfmOption) ?? "auto",
                 Type: SymbolParser.ToTypeName(symbol),
+                Depth: 0,
                 OutDir: parse.GetValueForOption(outOption)!,
                 Verbose: parse.GetValueForOption(globalOptions.Verbose),
                 Quiet: parse.GetValueForOption(globalOptions.Quiet),
