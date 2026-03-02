@@ -36,56 +36,73 @@ public sealed class TypeDecompilePipeline
     }
 
     /// <summary>
-    /// Executes package acquisition, type location, decompilation, and catalog updates.
+    /// Executes package acquisition (or local assembly mode), type location, decompilation, and catalog updates.
     /// </summary>
     public async Task<TypeDecompileResult> RunAsync(TypeDecompileRequest request, CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(request.PackageId);
+        ValidateSource(request);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.TypeName);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.OutputRoot);
 
-        // Keep package artifacts under output root so the run is self-contained.
-        var cacheRoot = Path.Combine(request.OutputRoot, ".cache");
+        var source = await ResolveSourceAsync(request, cancellationToken).ConfigureAwait(false);
+        var content = source.Content;
 
-        // 1) Acquire package and extracted content.
-        var package = await _acquirer.AcquireAsync(new NuGetPackageRequest(request.PackageId, request.Version, cacheRoot), cancellationToken).ConfigureAwait(false);
-
-        // 2) Resolve lib/TFM and assembly containing target type.
-        var content = _locator.Locate(new PackageContentRequest(
-            package.ExtractedPath,
-            request.TypeName,
-            request.Tfm));
-
-        // 3) Compute deterministic output file path.
         var outputPath = OutputPathBuilder.BuildTypeOutputPath(
             request.OutputRoot,
-            package.PackageId,
-            package.Version,
+            source.PackageId,
+            source.Version,
             content.SelectedTfm,
-            request.TypeName);
+            content.FullTypeName);
 
-        // 4) Decompile target type into generated C# file.
-        await _decompiler.DecompileTypeAsync(content.AssemblyPath, request.TypeName, outputPath, cancellationToken).ConfigureAwait(false);
+        await _decompiler.DecompileTypeAsync(content.AssemblyPath, content.FullTypeName, outputPath, cancellationToken).ConfigureAwait(false);
 
-        // 5) Update index and manifest for downstream tooling.
-        var indexPath = await _catalogWriter.WriteIndexAsync(request.OutputRoot, request.TypeName, outputPath, cancellationToken).ConfigureAwait(false);
+        var indexPath = await _catalogWriter.WriteIndexAsync(request.OutputRoot, content.FullTypeName, outputPath, cancellationToken).ConfigureAwait(false);
         var manifestPath = await _catalogWriter.WriteManifestAsync(request.OutputRoot, new ManifestEntry(
-            package.PackageId,
-            package.Version,
+            source.PackageId,
+            source.Version,
             content.SelectedTfm,
-            request.TypeName,
+            content.FullTypeName,
             content.AssemblyPath,
             outputPath,
             DateTimeOffset.UtcNow), cancellationToken).ConfigureAwait(false);
 
         return new TypeDecompileResult(
-            package.PackageId,
-            package.Version,
+            source.PackageId,
+            source.Version,
             content.SelectedTfm,
-            request.TypeName,
+            content.FullTypeName,
             content.AssemblyPath,
             outputPath,
             indexPath,
             manifestPath);
+    }
+
+    private static void ValidateSource(TypeDecompileRequest request)
+    {
+        var hasPackage = !string.IsNullOrWhiteSpace(request.PackageId);
+        var hasAssembly = !string.IsNullOrWhiteSpace(request.AssemblyPath);
+
+        if (hasPackage == hasAssembly)
+        {
+            throw new ArgumentException("Provide exactly one source: package or assembly path.", nameof(request));
+        }
+    }
+
+    private async Task<(string PackageId, string Version, PackageContentResult Content)> ResolveSourceAsync(TypeDecompileRequest request, CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(request.AssemblyPath))
+        {
+            var assemblyPath = request.AssemblyPath!.Trim();
+            var content = _locator.LocateInAssembly(assemblyPath, request.TypeName);
+
+            var packageId = Path.GetFileNameWithoutExtension(assemblyPath).ToLowerInvariant();
+            return (packageId, "local", content);
+        }
+
+        var cacheRoot = Path.Combine(request.OutputRoot, ".cache");
+        var package = await _acquirer.AcquireAsync(new NuGetPackageRequest(request.PackageId!, request.Version, cacheRoot), cancellationToken).ConfigureAwait(false);
+        var packageContent = _locator.Locate(new PackageContentRequest(package.ExtractedPath, request.TypeName, request.Tfm));
+
+        return (package.PackageId, package.Version, packageContent);
     }
 }

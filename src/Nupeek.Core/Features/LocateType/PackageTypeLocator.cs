@@ -9,6 +9,46 @@ namespace Nupeek.Core;
 public sealed class PackageTypeLocator
 {
     /// <summary>
+    /// Locates target type directly inside a specific assembly path.
+    /// </summary>
+    public PackageContentResult LocateInAssembly(string assemblyPath, string fullTypeName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(assemblyPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(fullTypeName);
+
+        if (!File.Exists(assemblyPath))
+        {
+            throw new InvalidOperationException($"Assembly was not found: {assemblyPath}");
+        }
+
+        var normalizedType = TypeNameNormalizer.Normalize(fullTypeName);
+        var dir = Path.GetDirectoryName(Path.GetFullPath(assemblyPath)) ?? ".";
+
+        var exact = FindTypeInSingleAssembly(assemblyPath, normalizedType);
+        if (!string.IsNullOrWhiteSpace(exact))
+        {
+            return new PackageContentResult("assembly", dir, assemblyPath, exact);
+        }
+
+        var memberName = SymbolParser.ExtractMemberName(fullTypeName);
+        var memberTypes = FindDeclaringTypesForMemberNameInAssembly(assemblyPath, memberName);
+
+        if (memberTypes.Count == 1)
+        {
+            return new PackageContentResult("assembly", dir, assemblyPath, memberTypes[0]);
+        }
+
+        if (memberTypes.Count > 1)
+        {
+            var suggestions = string.Join(", ", memberTypes.OrderBy(static x => x, StringComparer.Ordinal).Take(5));
+            throw new InvalidOperationException(
+                $"Type '{normalizedType}' was not found in '{assemblyPath}'. Found member '{memberName}' in multiple types: {suggestions}. Use --type with a fully-qualified type name.");
+        }
+
+        throw new InvalidOperationException($"Type '{normalizedType}' was not found in '{assemblyPath}'.");
+    }
+
+    /// <summary>
     /// Locates package content (TFM/lib/assembly) for the requested type.
     /// </summary>
     public PackageContentResult Locate(PackageContentRequest request)
@@ -183,6 +223,70 @@ public sealed class PackageTypeLocator
         => typeDef.GetEvents()
             .Select(md.GetEventDefinition)
             .Any(eventDef => string.Equals(md.GetString(eventDef.Name), memberName, StringComparison.Ordinal));
+
+    private static string? FindTypeInSingleAssembly(string assemblyPath, string fullTypeName)
+    {
+        try
+        {
+            using var stream = File.OpenRead(assemblyPath);
+            using var peReader = new PEReader(stream);
+
+            if (!peReader.HasMetadata)
+            {
+                return null;
+            }
+
+            var md = peReader.GetMetadataReader();
+            foreach (var handle in md.TypeDefinitions)
+            {
+                var typeName = GetTypeFullName(md, handle);
+                if (string.Equals(typeName, fullTypeName, StringComparison.Ordinal))
+                {
+                    return typeName;
+                }
+            }
+        }
+        catch
+        {
+            // fall through
+        }
+
+        return null;
+    }
+
+    private static List<string> FindDeclaringTypesForMemberNameInAssembly(string assemblyPath, string memberName)
+    {
+        var result = new List<string>();
+
+        try
+        {
+            using var stream = File.OpenRead(assemblyPath);
+            using var peReader = new PEReader(stream);
+            if (!peReader.HasMetadata)
+            {
+                return result;
+            }
+
+            var md = peReader.GetMetadataReader();
+            foreach (var handle in md.TypeDefinitions)
+            {
+                var typeDef = md.GetTypeDefinition(handle);
+                if (HasMethod(typeDef, md, memberName)
+                    || HasProperty(typeDef, md, memberName)
+                    || HasField(typeDef, md, memberName)
+                    || HasEvent(typeDef, md, memberName))
+                {
+                    result.Add(GetTypeFullName(md, handle));
+                }
+            }
+        }
+        catch
+        {
+            // fall through
+        }
+
+        return result.Distinct(StringComparer.Ordinal).ToList();
+    }
 
     private static string GetTypeFullName(MetadataReader md, TypeDefinitionHandle handle)
     {

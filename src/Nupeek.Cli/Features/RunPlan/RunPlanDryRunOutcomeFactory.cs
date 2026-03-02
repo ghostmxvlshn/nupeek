@@ -6,7 +6,7 @@ internal static class RunPlanDryRunOutcomeFactory
         => new(
             ExitCodes.Success,
             null,
-            request.Package,
+            RunPlanSourceLabel.Get(request),
             request.Version,
             request.Tfm,
             null,

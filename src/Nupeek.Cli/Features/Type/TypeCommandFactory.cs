@@ -7,10 +7,11 @@ internal static class TypeCommandFactory
 {
     public static Command Create(GlobalCliOptions globalOptions, Func<PlanRequest, Task<int>> runPlanAsync)
     {
-        var packageOption = new Option<string>("--package", "NuGet package id") { IsRequired = true };
+        var packageOption = new Option<string?>("--package", "NuGet package id.");
         packageOption.AddAlias("-p");
 
-        var versionOption = new Option<string?>("--version", "NuGet package version. Defaults to latest.");
+        var assemblyOption = new Option<string?>("--assembly", "Path to local assembly (.dll). Prefer this when dependency is already restored.");
+        var versionOption = new Option<string?>("--version", "NuGet package version. Defaults to latest. Ignored with --assembly.");
         var tfmOption = new Option<string?>("--tfm", "Target framework moniker. Defaults to auto.");
         var typeOption = new Option<string>("--type", "Fully-qualified type name (e.g. Namespace.Type)") { IsRequired = true };
         var outOption = new Option<string>("--out", "Output directory (e.g. deps-src)") { IsRequired = true };
@@ -18,8 +19,9 @@ internal static class TypeCommandFactory
         var emitOption = new Option<string>("--emit", () => "files", "Emit mode: files (default) or agent.");
         var maxCharsOption = new Option<int>("--max-chars", () => 12000, "Max inline source chars for --emit agent.");
 
-        var command = new Command("type", "Decompile a single type from a NuGet package.");
+        var command = new Command("type", "Decompile a single type from a NuGet package or local assembly.");
         command.AddOption(packageOption);
+        command.AddOption(assemblyOption);
         command.AddOption(versionOption);
         command.AddOption(tfmOption);
         command.AddOption(typeOption);
@@ -31,9 +33,21 @@ internal static class TypeCommandFactory
         command.SetHandler(async (InvocationContext context) =>
         {
             var parse = context.ParseResult;
+            var package = parse.GetValueForOption(packageOption);
+            var assembly = parse.GetValueForOption(assemblyOption);
+
+            var validation = ValidateSource(package, assembly);
+            if (validation is not null)
+            {
+                Console.Error.WriteLine(validation);
+                Environment.ExitCode = ExitCodes.InvalidArguments;
+                return;
+            }
+
             Environment.ExitCode = await runPlanAsync(new PlanRequest(
                 Command: "type",
-                Package: parse.GetValueForOption(packageOption)!,
+                Package: package,
+                Assembly: assembly,
                 Version: parse.GetValueForOption(versionOption) ?? "latest",
                 Tfm: parse.GetValueForOption(tfmOption) ?? "auto",
                 Type: parse.GetValueForOption(typeOption)!,
@@ -49,5 +63,20 @@ internal static class TypeCommandFactory
         });
 
         return command;
+    }
+
+    private static string? ValidateSource(string? package, string? assembly)
+    {
+        if (string.IsNullOrWhiteSpace(package) && string.IsNullOrWhiteSpace(assembly))
+        {
+            return "Provide exactly one source: --package <id> or --assembly <path-to-dll>.";
+        }
+
+        if (!string.IsNullOrWhiteSpace(package) && !string.IsNullOrWhiteSpace(assembly))
+        {
+            return "Use either --package or --assembly, not both.";
+        }
+
+        return null;
     }
 }

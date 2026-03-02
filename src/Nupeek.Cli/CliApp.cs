@@ -96,8 +96,8 @@ public static class CliApp
 
         root.Description += Environment.NewLine + Environment.NewLine +
             "Command options:" + Environment.NewLine +
-            "  type: --package|-p --type --out [--version] [--tfm] [--format text|json] [--emit files|agent] [--max-chars N]" + Environment.NewLine +
-            "  find: --package|-p --symbol --out [--version] [--tfm] [--format text|json] [--emit files|agent] [--max-chars N]" + Environment.NewLine + Environment.NewLine +
+            "  type: (--package|-p <id> | --assembly <dll>) --type --out [--version] [--tfm] [--format text|json] [--emit files|agent] [--max-chars N]" + Environment.NewLine +
+            "  find: (--package|-p <id> | --assembly <dll>) --symbol --out [--version] [--tfm] [--format text|json] [--emit files|agent] [--max-chars N]" + Environment.NewLine + Environment.NewLine +
             "Tip:" + Environment.NewLine +
             "  Run 'nupeek <command> --help' to see full per-command options." + Environment.NewLine + Environment.NewLine +
             "Examples:" + Environment.NewLine +
@@ -105,7 +105,8 @@ public static class CliApp
             "  nupeek type --package Humanizer.Core --version 2.14.1 --tfm netstandard2.0 --type Humanizer.StringHumanizeExtensions --out deps-src --dry-run false" + Environment.NewLine +
             "  nupeek type --package Polly --type Polly.Policy --out deps-src --format json --emit agent --max-chars 4000 --dry-run false" + Environment.NewLine +
             "  nupeek find --package Polly --symbol Polly.Policy.Handle --out deps-src" + Environment.NewLine +
-            "  nupeek find --package Dapper --symbol Dapper.SqlMapper.Query --out deps-src --progress never --dry-run false";
+            "  nupeek find --package Dapper --symbol Dapper.SqlMapper.Query --out deps-src --progress never" + Environment.NewLine +
+            "  nupeek type --assembly ./bin/Debug/net8.0/MyApp.Services.dll --type MyApp.Services.RetryHelper --out deps-src";
 
         root.AddCommand(TypeCommandFactory.Create(globalOptions, request => RunPlanHandler.RunAsync(request, cancellationToken)));
         root.AddCommand(FindCommandFactory.Create(globalOptions, request => RunPlanHandler.RunAsync(request, cancellationToken)));
