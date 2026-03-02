@@ -12,9 +12,5 @@ internal static class RunPlanDryRunOutcomeFactory
             null,
             null,
             null,
-            null,
-            null,
-            string.Equals(request.Emit, "agent", StringComparison.OrdinalIgnoreCase) ? request.MaxChars : null,
-            null,
-            false);
+            null);
 }

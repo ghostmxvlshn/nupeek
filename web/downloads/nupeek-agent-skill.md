@@ -67,21 +67,15 @@ nupeek find --package <PackageId> --symbol <Namespace.TypeOrMember> --out deps-s
 nupeek type --assembly <path-to.dll> --type <Resolved.Namespace.Type> --out deps-src
 ```
 
-6. Choose output mode based on task:
-- **Default (`--emit files`)** when you want reproducible local artifacts and can read files from disk.
-- **Agent fast path (`--emit agent --format json`)** when you want inline source + metadata immediately in command output.
+6. Use file-first workflow only (Nupeek writes artifacts to disk).
 
-Examples:
+Example:
 
 ```bash
-# Reproducible files-first mode
-nupeek type --package <PackageId> --type <Namespace.Type> --out deps-src --emit files
-
-# Agent-ready inline mode (no extra file-read step)
-nupeek type --package <PackageId> --type <Namespace.Type> --out deps-src --format json --emit agent --max-chars 12000
+nupeek type --package <PackageId> --type <Namespace.Type> --out deps-src
 ```
 
-7. Inspect generated files under `deps-src/` when using files mode:
+7. Inspect generated files under `deps-src/`:
 - Decompiled source file(s)
 - `index.json` for quick navigation
 - `manifest.json` for run metadata
@@ -100,9 +94,6 @@ When using Nupeek, report:
 
 - `--assembly <path-to.dll>` → preferred source when dependency assembly already exists locally
 - `--package <id>` (+ optional `--version`) → fallback source when assembly path is unavailable
-- `--format text|json` → human vs machine-readable output
-- `--emit files|agent` → files-first vs inline agent payload
-- `--max-chars <n>` → inline source cap for `--emit agent`
 - `--depth <n>` → include related types (base/interfaces) when decompiling
 - `--progress auto|always|never` → terminal spinner behavior
 - `--dry-run` → show execution plan without decompiling

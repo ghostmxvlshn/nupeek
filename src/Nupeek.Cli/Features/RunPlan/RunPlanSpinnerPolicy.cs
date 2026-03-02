@@ -2,9 +2,9 @@ namespace Nupeek.Cli;
 
 internal static class RunPlanSpinnerPolicy
 {
-    public static bool ShouldShow(PlanRequest request, string format, string progress)
+    public static bool ShouldShow(PlanRequest request, string progress)
     {
-        if (request.Quiet || request.Verbose || string.Equals(format, "json", StringComparison.Ordinal))
+        if (request.Quiet || request.Verbose)
         {
             return false;
         }

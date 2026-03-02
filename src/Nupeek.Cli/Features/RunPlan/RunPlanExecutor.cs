@@ -4,10 +4,7 @@ internal static class RunPlanExecutor
 {
     public static Task<CliOutcome> ExecuteAsync(
         PlanRequest request,
-        string format,
-        string emit,
         string progress,
-        int maxChars,
         CancellationToken cancellationToken)
     {
         if (request.DryRun)
@@ -15,12 +12,12 @@ internal static class RunPlanExecutor
             return Task.FromResult(RunPlanDryRunOutcomeFactory.Create(request));
         }
 
-        if (!RunPlanSpinnerPolicy.ShouldShow(request, format, progress))
+        if (!RunPlanSpinnerPolicy.ShouldShow(request, progress))
         {
-            return RunPlanRealExecution.ExecuteAsync(request, emit, maxChars, cancellationToken);
+            return RunPlanRealExecution.ExecuteAsync(request, cancellationToken);
         }
 
         return RunPlanSpinnerExecutor.ExecuteAsync(
-            () => RunPlanRealExecution.ExecuteAsync(request, emit, maxChars, cancellationToken));
+            () => RunPlanRealExecution.ExecuteAsync(request, cancellationToken));
     }
 }
