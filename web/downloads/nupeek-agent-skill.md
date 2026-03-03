@@ -82,6 +82,28 @@ nupeek type --package <PackageId> --type <Namespace.Type> --out deps-src
 - Decompiled source file(s)
 - `index.json` for quick navigation
 - `manifest.json` for run metadata
+- Graph exports from `nupeek graph`:
+  - `graph.types.json` → type nodes (name/full name/base/interfaces)
+  - `graph.members.json` → methods/properties/fields/events per type
+  - `graph.edges.json` → structural relations (`inherits`, `implements`)
+  - `graph.globals.json` → static fields/constants (global-like state)
+
+Example graph command and output shape:
+
+```bash
+nupeek graph --assembly <path-to.dll> --type <Namespace.Type> --depth 2 --out deps-src
+```
+
+```json
+// graph.types.json
+[{ "Name": "RetryStrategyOptions`1", "FullName": "Polly.Retry.RetryStrategyOptions`1", "BaseType": "Polly.ResilienceStrategyOptions", "Interfaces": [] }]
+
+// graph.members.json
+[{ "DeclaringType": "Polly.Retry.RetryStrategyOptions`1", "Kind": "property", "Name": "MaxRetryAttempts", "IsStatic": false, "Visibility": "unknown" }]
+
+// graph.edges.json
+[{ "FromType": "Polly.Retry.RetryStrategyOptions`1", "Relation": "inherits", "ToType": "Polly.ResilienceStrategyOptions" }]
+```
 
 8. Base guidance/patches on observed implementation, not API guesswork.
 
