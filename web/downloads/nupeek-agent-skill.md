@@ -47,6 +47,9 @@ nupeek type --assembly <path-to.dll> --type <Namespace.Type> --out deps-src
 # Include directly related types (base + interfaces)
 nupeek type --assembly <path-to.dll> --type <Namespace.Type> --depth 1 --out deps-src
 
+# Export full structural graph for agents (provider-only)
+nupeek graph --assembly <path-to.dll> --type <Namespace.Type> --depth 2 --out deps-src
+
 # Fallback when assembly path is not available
 nupeek type --package <PackageId> --type <Namespace.Type> --out deps-src
 ```
@@ -95,6 +98,7 @@ When using Nupeek, report:
 - `--assembly <path-to.dll>` → preferred source when dependency assembly already exists locally
 - `--package <id>` (+ optional `--version`) → fallback source when assembly path is unavailable
 - `--depth <n>` → include related types (base/interfaces) when decompiling
+- `graph` command → export `graph.types/members/edges/globals.json` for agent consumption (no analysis)
 - `--progress auto|always|never` → terminal spinner behavior
 - `--dry-run` → show execution plan without decompiling
 

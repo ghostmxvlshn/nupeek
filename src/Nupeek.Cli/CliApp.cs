@@ -93,7 +93,8 @@ public static class CliApp
             "Command options:" + Environment.NewLine +
             "  type: (--package|-p <id> | --assembly <dll>) --type --out [--depth N] [--version] [--tfm]" + Environment.NewLine +
             "  find: (--package|-p <id> | --assembly <dll>) --symbol --out [--version] [--tfm]" + Environment.NewLine +
-            "  list: (--package|-p <id> | --assembly <dll>) [--version] [--tfm] [--query text]" + Environment.NewLine + Environment.NewLine +
+            "  list: (--package|-p <id> | --assembly <dll>) [--version] [--tfm] [--query text]" + Environment.NewLine +
+            "  graph: --assembly <dll> --out <dir> [--type <Namespace.Type>] [--depth N]" + Environment.NewLine + Environment.NewLine +
             "Tip:" + Environment.NewLine +
             "  Run 'nupeek <command> --help' to see full per-command options." + Environment.NewLine + Environment.NewLine +
             "Examples:" + Environment.NewLine +
@@ -103,11 +104,13 @@ public static class CliApp
             "  nupeek find --package Polly --symbol Polly.Policy.Handle --out deps-src" + Environment.NewLine +
             "  nupeek find --package Dapper --symbol Dapper.SqlMapper.Query --out deps-src --progress never" + Environment.NewLine +
             "  nupeek type --assembly ./bin/Debug/net8.0/MyApp.Services.dll --type MyApp.Services.RetryHelper --out deps-src" + Environment.NewLine +
-            "  nupeek list --assembly ./bin/Debug/net8.0/MyApp.Services.dll --query Retry";
+            "  nupeek list --assembly ./bin/Debug/net8.0/MyApp.Services.dll --query Retry" + Environment.NewLine +
+            "  nupeek graph --assembly ./bin/Debug/net8.0/MyApp.Services.dll --type MyApp.Services.RetryHelper --depth 2 --out deps-src";
 
         root.AddCommand(TypeCommandFactory.Create(globalOptions, request => RunPlanHandler.RunAsync(request, cancellationToken)));
         root.AddCommand(FindCommandFactory.Create(globalOptions, request => RunPlanHandler.RunAsync(request, cancellationToken)));
         root.AddCommand(ListCommandFactory.Create(cancellationToken));
+        root.AddCommand(GraphCommandFactory.Create(cancellationToken));
 
         return root;
     }
@@ -135,7 +138,7 @@ public static class CliApp
             return false;
         }
 
-        if (args[0] is "type" or "find" or "list")
+        if (args[0] is "type" or "find" or "list" or "graph")
         {
             return false;
         }
