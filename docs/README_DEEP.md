@@ -13,6 +13,7 @@ Without source visibility, agents often infer behavior from signatures/docs only
 ```bash
 nupeek type --package <id> [--version <v>] [--tfm <tfm>] --type "<Namespace.Type>" --out deps-src [--depth <n>] [--progress auto|always|never]
 nupeek find --package <id> [--version <v>] [--tfm <tfm>] --symbol "<Namespace.Type.Method>" --out deps-src [--progress auto|always|never]
+nupeek graph --assembly <path-to.dll> [--type "<Namespace.Type>"] [--depth <n>] --out deps-src
 ```
 
 ## Typical output layout
@@ -45,11 +46,30 @@ nupeek find --package Polly \
   --out deps-src --dry-run false
 ```
 
+## Graph output files (for agents)
+
+`nupeek graph` writes four machine-readable files to your `--out` directory:
+
+- `graph.types.json` → type nodes (`Name`, `FullName`, `BaseType`, `Interfaces`)
+- `graph.members.json` → member nodes (`DeclaringType`, `Kind`, `Name`, `IsStatic`, `Visibility`)
+- `graph.edges.json` → type relations (`inherits`, `implements`)
+- `graph.globals.json` → static/global-like fields and constants
+
+Minimal real-world shape:
+
+```json
+// graph.types.json
+[{ "Name": "ResilienceStrategyOptions", "FullName": "Polly.ResilienceStrategyOptions", "BaseType": "System.Object", "Interfaces": [] }]
+
+// graph.edges.json
+[{ "FromType": "Polly.Retry.RetryStrategyOptions`1", "Relation": "inherits", "ToType": "Polly.ResilienceStrategyOptions" }]
+```
+
 ## Notes
 
 - Generated sources are local artifacts; avoid redistributing decompiled output.
 - Nupeek is optimized for targeted inspection, not whole ecosystem dumps.
-- Use `index.json` and `manifest.json` for deterministic lookup/provenance.
+- Use `index.json`, `manifest.json`, and graph JSON files for deterministic lookup/provenance.
 
 ## Related docs
 

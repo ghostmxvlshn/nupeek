@@ -105,7 +105,8 @@ public static class CliApp
             "  nupeek find --package Dapper --symbol Dapper.SqlMapper.Query --out deps-src --progress never" + Environment.NewLine +
             "  nupeek type --assembly ./bin/Debug/net8.0/MyApp.Services.dll --type MyApp.Services.RetryHelper --out deps-src" + Environment.NewLine +
             "  nupeek list --assembly ./bin/Debug/net8.0/MyApp.Services.dll --query Retry" + Environment.NewLine +
-            "  nupeek graph --assembly ./bin/Debug/net8.0/MyApp.Services.dll --type MyApp.Services.RetryHelper --depth 2 --out deps-src";
+            "  nupeek graph --assembly ./bin/Debug/net8.0/MyApp.Services.dll --type MyApp.Services.RetryHelper --depth 2 --out deps-src" + Environment.NewLine +
+            "  # Graph files: graph.types.json, graph.members.json, graph.edges.json, graph.globals.json";
 
         root.AddCommand(TypeCommandFactory.Create(globalOptions, request => RunPlanHandler.RunAsync(request, cancellationToken)));
         root.AddCommand(FindCommandFactory.Create(globalOptions, request => RunPlanHandler.RunAsync(request, cancellationToken)));
